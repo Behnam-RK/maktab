@@ -1,7 +1,7 @@
 ---
 name: momayezi
 description: "Run a review ↔ fix loop: you edit, fresh read-only reviewer subagents (normally on a model at least as strong as yours) critique each round, until clean, capped or stalled. Works on a diff, files, a plan, a spec or a doc. Use when the user asks for it — 'review loop', 'review and fix until clean', 'keep reviewing', 'get this reviewed by opus', 'momayezi this' — never on your own after ordinary edits."
-argument-hint: "[target] [--lenses a,b] [--model m] [--max-rounds n] [--max-reviewers n] [--smart|--no-smart] [--verify] [--no-exec] [--reviewer remote] [--review-only …]"
+argument-hint: "[target] [--lenses a,b] [--model m] [--max-rounds n] [--max-reviewers n] [--smart|--no-smart] [--verify] [--no-exec] [--reviewer remote [--remote-timeout s]] [--review-only …]"
 ---
 
 # Momayezi — review ↔ fix loop
