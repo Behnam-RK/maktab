@@ -21,6 +21,10 @@ plugin under `plugins/`:
   `uv run --group test coverage run -m pytest && uv run --group test coverage report`
   (fails under 100% line and branch coverage). The doc gate on this repo: `uv run tahrir
   check`, configured by `.docs.toml` (upstream plugins excluded).
+- momayezi's CI end and channel are `plugins/maktab/src/momayezi` (stdlib
+  only, plus `gh`), under the same tests and coverage gate. Its wire format
+  lives in `protocol.py` and `plugins/maktab/skills/momayezi/references/ledger.schema.json`;
+  nameless's workflow depends on both, so change its end in step.
 - Skill and reference prose is measured by that gate; keep SKILL.md under its
   hard cap and move detail into `references/`.
 
