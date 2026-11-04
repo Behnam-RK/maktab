@@ -1,0 +1,52 @@
+name: momayez-smoke
+# Temporary: exercises momayezi-prior and momayezi-post against this PR. Deleted with the branch.
+on:
+  pull_request:
+    types: [opened, labeled]
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+jobs:
+  smoke:
+    if: github.event.action == 'opened' || github.event.label.name == 'review'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      BASE: ${{ github.event.pull_request.base.sha }}
+      HEAD: ${{ github.event.pull_request.head.sha }}
+      PYTHONPATH: plugins/maktab/src
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Prior ledger
+        run: python -m momayezi prior "$PR" > prior.json; wc -c prior.json
+      - name: Post a canned review-only ledger
+        run: |
+          python - <<'PY' > ledger.json
+          import json, os
+          prior = json.load(open('prior.json')) if os.path.getsize('prior.json') else None
+          d = json.load(open('plugins/maktab/tests/fixtures/ledger-round.json'))
+          d['target'] = {'base_sha': os.environ['BASE'], 'head_sha': os.environ['HEAD']}
+          d['round'] = prior['round'] + 1 if prior else 1
+          d['notes'] = [f"smoke: prior round {prior['round'] if prior else 'none'}"]
+          f1, f2, f3 = d['findings']
+          f1.update(round=1, state='open', at={'path': 'plugins/maktab/src/momayezi/protocol.py', 'line': 3}, in_diff=True)
+          f1.pop('reason')
+          f2.update(round=d['round'], at={'path': 'plugins/maktab/src/momayezi/protocol.py', 'line': 4, 'end_line': 6})
+          f3.update(round=d['round'], severity='minor')
+          if prior:
+              carried = {f['id']: f for f in prior['findings']}
+              for f in d['findings']:
+                  if f['id'] in carried:
+                      f.update(state=carried[f['id']]['state'], round=carried[f['id']]['round'])
+                      if 'reason' in carried[f['id']]:
+                          f['reason'] = carried[f['id']]['reason']
+          print(json.dumps(d))
+          PY
+          python -m momayezi post "$PR" < ledger.json
