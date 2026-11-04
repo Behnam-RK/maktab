@@ -122,7 +122,7 @@ if (isGlobalInstall()) {
     const result = healInstalledPlugins({
       registryPath,
       pluginCacheRoot,
-      pluginKey: "context-mode@toolshed",
+      pluginKey: "context-mode@maktab",
     });
     if (result.skipped === "no-registry") {
       // Standalone npm user (no Claude Code) — silent success.
@@ -147,7 +147,7 @@ if (isGlobalInstall()) {
     const settingsPath = resolve(homedir(), ".claude", "settings.json");
     const r = healSettingsEnabledPlugins({
       settingsPath,
-      pluginKey: "context-mode@toolshed",
+      pluginKey: "context-mode@maktab",
     });
     if (r.healed && r.healed.length > 0) {
       process.stderr.write(`context-mode: healed settings.json (${r.healed.join(", ")})\n`);
@@ -165,7 +165,7 @@ if (isGlobalInstall()) {
     const cacheRoot = resolve(homedir(), ".claude", "plugins", "cache");
     if (existsSync(ipPath)) {
       const ip = JSON.parse(readFileSync(ipPath, "utf-8"));
-      const entries = (ip && ip.plugins && ip.plugins["context-mode@toolshed"]) || [];
+      const entries = (ip && ip.plugins && ip.plugins["context-mode@maktab"]) || [];
       let healedAny = false;
       if (Array.isArray(entries)) {
         for (const entry of entries) {
@@ -175,7 +175,7 @@ if (isGlobalInstall()) {
             const r = healPluginJsonMcpServers({
               pluginRoot: installPath,
               pluginCacheRoot: cacheRoot,
-              pluginKey: "context-mode@toolshed",
+              pluginKey: "context-mode@maktab",
             });
             if (r && Array.isArray(r.healed) && r.healed.length > 0) {
               healedAny = true;
@@ -191,7 +191,7 @@ if (isGlobalInstall()) {
       try {
         const sweepResult = sweepStaleMcpJson({
           pluginCacheRoot: cacheRoot,
-          pluginKey: "context-mode@toolshed",
+          pluginKey: "context-mode@maktab",
         });
         if (sweepResult && Array.isArray(sweepResult.removed) && sweepResult.removed.length > 0) {
           process.stderr.write(`context-mode: swept ${sweepResult.removed.length} stale .mcp.json file(s) (Issue #609)\n`);
@@ -213,7 +213,7 @@ try {
     const ip = JSON.parse(readFileSync(ipPath, "utf-8"));
     const cacheRoot = resolve(homedir(), ".claude", "plugins", "cache");
     for (const [key, entries] of Object.entries(ip.plugins || {})) {
-      if (key !== "context-mode@toolshed") continue;
+      if (key !== "context-mode@maktab") continue;
       for (const entry of entries) {
         const rp = entry.installPath;
         if (!rp || existsSync(rp)) continue;

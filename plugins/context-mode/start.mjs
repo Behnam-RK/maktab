@@ -187,7 +187,7 @@ if (cacheMatch) {
 
         const ip = JSON.parse(readFileSync(ipPath, "utf-8"));
         for (const [key, entries] of Object.entries(ip.plugins || {})) {
-          if (key !== "context-mode@toolshed") continue;
+          if (key !== "context-mode@maktab") continue;
           for (const entry of entries) {
             entry.installPath = newestDir;
             entry.version = newest;
@@ -203,7 +203,7 @@ if (cacheMatch) {
     if (existsSync(ipPath)) {
       const ip = JSON.parse(readFileSync(ipPath, "utf-8"));
       for (const [key, entries] of Object.entries(ip.plugins || {})) {
-        if (key !== "context-mode@toolshed") continue;
+        if (key !== "context-mode@maktab") continue;
         for (const entry of entries) {
           const rp = entry.installPath;
           if (!rp || existsSync(rp) || rp === __dirname) continue;
@@ -240,7 +240,7 @@ if (cacheMatch) {
 try {
   const { healInstalledPlugins, healSettingsEnabledPlugins, healPluginJsonMcpServers, sweepStaleMcpJson } =
     await import("./scripts/heal-installed-plugins.mjs");
-  const pluginKey = "context-mode@toolshed";
+  const pluginKey = "context-mode@maktab";
   const claudeConfigDir = resolveClaudeConfigDir();
   const registryPath = resolve(claudeConfigDir, "plugins", "installed_plugins.json");
   const pluginCacheRoot = resolve(claudeConfigDir, "plugins", "cache");
@@ -335,7 +335,7 @@ try{
   const cacheRoot=resolve(cfgDir(),"plugins","cache");
   const ip=JSON.parse(readFileSync(f,"utf-8"));
   for(const[k,es]of Object.entries(ip.plugins||{})){
-    if(k!=="context-mode@toolshed")continue;
+    if(k!=="context-mode@maktab")continue;
     for(const e of es){
       const p=e.installPath;
       if(!p)continue;

@@ -248,7 +248,7 @@ export function healPluginJsonMcpServers({ pluginRoot, pluginCacheRoot, pluginKe
     return { healed: [], skipped: "no-mcp-servers" };
   }
 
-  // Derive our server name from pluginKey ("context-mode@toolshed" → "context-mode").
+  // Derive our server name from pluginKey ("context-mode@maktab" → "context-mode").
   const ourServerName = pluginKey.split("@")[0];
   const ours = servers[ourServerName];
   if (!ours || typeof ours !== "object" || !Array.isArray(ours.args)) {
@@ -358,7 +358,7 @@ export function healMcpJsonArgs({ pluginRoot, pluginCacheRoot, pluginKey }) {
     return { healed: [], skipped: "no-mcp-servers" };
   }
 
-  // Derive our server name from pluginKey ("context-mode@toolshed" → "context-mode").
+  // Derive our server name from pluginKey ("context-mode@maktab" → "context-mode").
   const ourServerName = pluginKey.split("@")[0];
   const ours = servers[ourServerName];
   if (!ours || typeof ours !== "object" || !Array.isArray(ours.args)) {
@@ -528,7 +528,7 @@ export function healClaudeJsonMcpArgs({ dotClaudeJsonPath, pluginCacheParent, ne
  * `<pluginCacheRoot>/<owner>/<plugin>/<X.Y.Z>/`.
  *
  * @param {{ pluginCacheRoot: string, pluginKey: string }} opts
- *   pluginKey is the "<owner>@<plugin>" form (e.g. "context-mode@toolshed").
+ *   pluginKey is the "<owner>@<plugin>" form (e.g. "context-mode@maktab").
  * @returns {SweepResult}
  */
 export function sweepStaleMcpJson({ pluginCacheRoot, pluginKey }) {
