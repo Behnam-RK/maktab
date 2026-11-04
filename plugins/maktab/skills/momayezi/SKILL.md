@@ -1,7 +1,7 @@
 ---
 name: momayezi
 description: "Run a review ↔ fix loop: you edit, fresh read-only reviewer subagents (normally on a model at least as strong as yours) critique each round, until clean, capped or stalled. Works on a diff, files, a plan, a spec or a doc. Use when the user asks for it — 'review loop', 'review and fix until clean', 'keep reviewing', 'get this reviewed by opus', 'momayezi this' — never on your own after ordinary edits."
-argument-hint: "[target] [--lenses a,b] [--model m] [--max-rounds n] [--max-reviewers n] [--smart|--no-smart] [--verify]"
+argument-hint: "[target] [--lenses a,b] [--model m] [--max-rounds n] [--max-reviewers n] [--smart|--no-smart] [--verify] [--no-exec] [--reviewer remote] [--review-only …]"
 ---
 
 # Momayezi — review ↔ fix loop
@@ -14,22 +14,25 @@ the end.
 
 Arguments: `$ARGUMENTS`
 
+**Modes.** `--review-only` (one round for CI, no edits): follow
+[references/review-only.md](references/review-only.md) instead of the loop.
+`--reviewer remote` (the `momayez` check run reviews each round): read
+[references/remote.md](references/remote.md) before Setup.
+
 ## Setup
 
 1. **Target.** What the user named (files, a doc, a ref range). Default: the
-   diff of the current branch against its base plus uncommitted changes. Code
-   if it touches source; prose if only docs, plans, specs or skills.
+   diff of the current branch against its base plus uncommitted changes. Its
+   kind (code, prose, mixed) comes from lenses.md "Picking".
 2. **Smart sizing.** On with `--smart`, or `${user_config.momayezi_smart}` = `on`
    unless `--no-smart`. [references/smart.md](references/smart.md) then sets
    the defaults for steps 4–6, ahead of config; explicit flags win.
 3. **Intent brief.** From the conversation, ticket or spec, write once:
-   goal, requirements, constraints, out-of-scope. It is pinned
-   for every round; don't rewrite it to fit a finding.
-4. **Lenses.** `--lenses` if given, else pick 1–3 from
-   [references/lenses.md](references/lenses.md) by target and risk, at most
-   the reviewer cap: `--max-reviewers`, else `${user_config.momayezi_max_reviewers}`
-   (2 if blank or unsubstituted), highest risk first. Explicit `--lenses` is
-   never trimmed.
+   goal, requirements, constraints, out-of-scope. Pinned for every round;
+   never rewritten to fit a finding.
+4. **Lenses.** By changed paths, per "Picking" in
+   [references/lenses.md](references/lenses.md), capped at `--max-reviewers`,
+   else `${user_config.momayezi_max_reviewers}` (2 if blank or unsubstituted).
 5. **Reviewer model.** Order: `haiku < sonnet < opus < fable`. Take the
    stronger of your own model and the configured floor
    `${user_config.momayezi_reviewer_model}` (`opus` if blank or unsubstituted). Smart's
@@ -47,15 +50,15 @@ Momayezi: <target>
 Smart:   <tier> (<n> lines, <f> files, <risky|plain>) | off
 Intent:  <goal> | reqs: … | constraints: … | out: …
 Lenses:  <a, b> on <model>   Cap: <n>   Gate: <command> (<green|red|none>) | n/a
+Reviewer: local | remote (commits and pushes each round to <branch>)
 ```
 
 ## A round
 
-1. **Spawn** one reviewer per lens, each fresh, in waves of at most
-   `--max-reviewers`, else `${user_config.momayezi_max_reviewers}` (2 if blank
-   or unsubstituted); smart never raises it. One message per wave, each
-   finishing before the next. Prompt each with the intent brief, its lens brief from lenses.md, the
-   target, and from round 2 the ledger. Scope:
+1. **Spawn** one reviewer per lens, each fresh, in waves of at most the
+   reviewer cap from Setup step 4; smart never raises it. One message per
+   wave, each finishing before the next. Prompt each with the intent brief, its lens brief from lenses.md, the
+   target, from round 2 the ledger, and `Execution: off` with `--no-exec`. Scope:
    - Round 1 and the capped round: the full target.
    - Other rounds: the last fix diff (regressions) and files no finding has
      cited.
@@ -79,11 +82,8 @@ Lenses:  <a, b> on <model>   Cap: <n>   Gate: <command> (<green|red|none>) | n/a
 
 ## Ledger
 
-Kept in your context; nothing is written to disk. Per finding: id, lens,
-severity, `at`, claim, state, and the reason for any `wont-fix`/`disputed`.
-States: `open → fixed | wont-fix | disputed`. A `wont-fix` re-raised with new
-evidence gets one more look; if you still decline, it becomes `disputed`.
-Also keep the set of files any finding has cited.
+Kept in your context, typed per [references/ledger.md](references/ledger.md);
+nothing is written to disk.
 
 ## Stop
 
@@ -100,7 +100,8 @@ Minor findings are fixed but don't keep the loop alive.
 
 ```
 ## Momayezi — <target>
-Rounds:    <n> on <model>, lenses <a, b> — stopped: <clean|cap|stall>
+Rounds:    <n> on <model>, lenses <a, b> — stopped: <clean|cap|stall|remote unavailable>
+Reviewer:  local | remote (<n> requests)
 Gate:      <command> — <green|red> (baseline <green|red>) | n/a
 Fixed:     F1 <severity> <path:line> — <claim>
 Won't fix: F4 <path:line> — <claim> — <evidence>

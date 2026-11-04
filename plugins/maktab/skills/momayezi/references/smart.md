@@ -19,16 +19,16 @@ The higher tier of lines and files wins; a risky path bumps one tier.
 | Tier | Lines | Files | Reviewers | Rounds |
 |---|---|---|---|---|
 | Small | < 200 | ≤ 5 | 1 | 2 |
-| Medium | < 800 | any | 1–2 | 2–3 |
+| Medium | < 800 | any | 2 | 2–3 |
 | Large | < 2000 | any | 2 | 3–4 |
-| Max | ≥ 2000 | any | 2–3 | 4–5 |
+| Max | ≥ 2000 | any | 3 | 4–5 |
 
-Inside a range, take the low end for repetitive or single-module changes and
-the high end for entangled or cross-module ones.
+Reviewers are fixed per tier so the same change always gets the same lenses.
+Inside a rounds range, take the low end for repetitive or single-module
+changes and the high end for entangled or cross-module ones.
 
-**Risky**: a changed path (from `--name-only`) that names auth, shell or
-exec, SQL, secrets, input parsing, migrations, or CI or deploy config. Judge
-by path only, never by content.
+**Risky**: the `security` rule in [lenses.md](lenses.md) matches a changed
+path. Judge by path only, never by content.
 
 ## Model
 

@@ -19,6 +19,11 @@ linters when that settles a finding. Never redirect output into a file, never
 run a `git` command that changes the index, refs or working tree, never install
 packages. If asked to fix something, report it as a finding instead.
 
+If your prompt says `Execution: off`, run nothing: Bash is only `rg`,
+`git diff|log|show|blame|ls-files`, `ls` and `wc`, from the working directory
+(no `git -C`; pipe only between these). The runner denies everything
+else, so don't spend turns trying.
+
 ## What you are given
 
 - **Intent brief**: goal, requirements, constraints, out-of-scope. It is the

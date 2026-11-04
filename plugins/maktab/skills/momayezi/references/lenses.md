@@ -4,21 +4,30 @@ Pass a reviewer its lens name and the brief below verbatim.
 
 ## Picking
 
-Pick 1–3, smallest set that covers the risk:
+By changed paths only, so the same list gives the same lenses here and in CI.
+`--lenses` overrides and is never trimmed. Otherwise, from the target's
+`git diff --name-only <base> [<head>]` (plus untracked files locally), run
+each rule below as `… | rg -qi '<pattern>'` (exit 0 = a path matches):
 
-| Target | Default | Add when |
-|---|---|---|
-| Code | correctness, spec-fit | one of the code lenses below |
-| Prose (spec, plan, doc, skill) | accuracy, clarity | spec-fit: the doc answers a request or ticket. |
-| Mixed | correctness, accuracy | spec-fit when there is a stated requirement. |
+```
+prose     \.(md|mdx|rst|txt|adoc)$
+security  auth|secret|token|crypt|passw|credential|shell|exec|sql|migrat|parse|\.sh$|\.github/workflows/|(^|/)(infra|deploy)/|terraform|\.tf$|dockerfile|compose\.ya?ml$
+test      (^|/)(tests?|__tests__|specs?)/|(^|/)test_[^/]*$|_test\.[a-z]+$|\.(test|spec)\.[a-z]+$|_spec\.rb$|conftest\.py$
+source    \.(py|pyi|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kts?|swift|c|cc|cpp|h|hpp|cs|php|scala|exs?|sh)$
+docs      \.(md|mdx|rst)$|(^|/)docs?/|(^|/)(cli|cmd|bin)(/|\.)|config|settings|\.(toml|ya?ml|ini|cfg)$|(^|/)(api|public)/|openapi|\.proto$|(^|/)__init__\.py$|(^|/)index\.(js|ts|mjs)$|package\.json$
+```
 
-Code lenses, added when the target has:
-
-- **security**: auth, input parsing, IO, shell, SQL, secrets.
-- **tests**: new behaviour without tests.
-- **performance**: hot paths, loops over unbounded data, queries.
-- **simplicity**: large new abstractions.
-- **docs**: changed public symbols, CLI flags or config.
+1. **Kind**: prose if every path matches `prose` (`rg -vqi` finds none
+   that doesn't), code if none does, else mixed.
+2. **Defaults**: code: correctness, spec-fit. Prose: accuracy, clarity.
+   Mixed: correctness, accuracy. Prose and mixed add spec-fit when the intent
+   brief states a requirement.
+3. **Added** (code and mixed): security when `security` matches; tests when
+   a path matches `source` but not `test` (`rg -i '<source>' | rg -vqi
+   '<test>'`) and no path matches `test`; docs when `docs` matches.
+   Performance and simplicity come only from `--lenses`.
+4. **Cap**: keep the first `max_reviewers` (smart's tier count, if lower) in
+   this order: security, correctness, accuracy, spec-fit, tests, docs, clarity.
 
 ## correctness
 
