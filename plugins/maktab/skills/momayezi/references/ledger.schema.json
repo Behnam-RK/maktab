@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "momayezi ledger v1",
+  "description": "One momayezi round's ledger: the header and every finding so far. See ledger.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "target", "round", "lenses", "model", "tier", "verdict", "cited_files", "truncated", "findings"],
+  "properties": {
+    "version": { "enum": ["v1"] },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base_sha", "head_sha"],
+      "properties": {
+        "repo": { "type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$" },
+        "pr": { "type": "integer", "minimum": 1 },
+        "ref": { "type": "string", "minLength": 1 },
+        "base_sha": { "type": "string", "pattern": "^[0-9a-f]{7,64}$" },
+        "head_sha": { "type": "string", "pattern": "^[0-9a-f]{7,64}$" }
+      }
+    },
+    "round": { "type": "integer", "minimum": 1 },
+    "lenses": { "type": "array", "items": { "$ref": "#/definitions/lens" } },
+    "model": { "type": "string", "minLength": 1 },
+    "tier": { "enum": ["small", "medium", "large", "max", "off"] },
+    "verdict": { "enum": ["clean", "findings"] },
+    "cited_files": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "truncated": { "type": "boolean" },
+    "notes": { "type": "array", "items": { "type": "string" } },
+    "findings": { "type": "array", "items": { "$ref": "#/definitions/finding" } }
+  },
+  "definitions": {
+    "lens": {
+      "enum": ["correctness", "security", "spec-fit", "simplicity", "tests", "performance", "docs", "accuracy", "clarity"]
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "round", "lens", "severity", "confidence", "at", "in_diff", "evidence", "claim", "fix", "state"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^F[1-9][0-9]*$" },
+        "round": { "type": "integer", "minimum": 1 },
+        "lens": { "$ref": "#/definitions/lens" },
+        "severity": { "enum": ["critical", "major", "minor", "nit"] },
+        "confidence": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "at": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "line"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "line": { "type": "integer", "minimum": 1 },
+            "end_line": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "in_diff": { "type": "boolean" },
+        "evidence": { "type": "string" },
+        "claim": { "type": "string", "minLength": 1 },
+        "fix": { "type": "string" },
+        "state": { "enum": ["open", "fixed", "wont-fix", "disputed"] },
+        "reason": { "type": "string" }
+      }
+    }
+  }
+}

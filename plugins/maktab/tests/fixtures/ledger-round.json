@@ -1,0 +1,25 @@
+{
+  "version": "v1",
+  "target": {"base_sha": "06a507b9475180c34a71ea40cfd8543d8acfefe7", "head_sha": "2794d3bbb3fd55ebfeba6d8be8ddee4446dfb9df"},
+  "round": 2,
+  "lenses": ["security", "correctness"],
+  "model": "opus",
+  "tier": "small",
+  "verdict": "findings",
+  "cited_files": ["stats.py"],
+  "truncated": false,
+  "notes": ["No intent brief: reviewed against the repo's rules."],
+  "findings": [
+    {"id": "F1", "round": 1, "lens": "correctness", "severity": "major", "confidence": 95,
+     "at": {"path": "stats.py", "line": 2}, "in_diff": true,
+     "evidence": "return sum(xs) / (len(xs) - 1)", "claim": "Divides by n-1, so the mean is wrong and a one-item list divides by zero.",
+     "fix": "Divide by len(xs).", "state": "wont-fix", "reason": "Sample mean is intended: see docs/stats.md:4."},
+    {"id": "F2", "round": 2, "lens": "security", "severity": "critical", "confidence": 90,
+     "at": {"path": "stats.py", "line": 5, "end_line": 7}, "in_diff": true,
+     "evidence": "return os.system(\"sh -c \" + cmd)  # --> <b>", "claim": "Untrusted cmd reaches a shell.",
+     "fix": "subprocess.run([...]) without a shell.", "state": "open"},
+    {"id": "F3", "round": 2, "lens": "correctness", "severity": "nit", "confidence": 80,
+     "at": {"path": "README.md", "line": 1}, "in_diff": false,
+     "evidence": "", "claim": "Title casing.", "fix": "", "state": "open"}
+  ]
+}

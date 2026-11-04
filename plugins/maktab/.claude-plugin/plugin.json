@@ -3,11 +3,18 @@
   "name": "maktab",
   "displayName": "maktab",
   "version": "2.0.0",
-  "description": "tahrir keeps docs true to code (doc-budget gate, ADRs); momayezi runs a review ↔ fix loop; tarahi drafts shaping docs and publishes them to Linear.",
+  "description": "tahrir keeps docs true to code (doc-budget gate, ADRs); momayezi runs a review ↔ fix loop, locally or against the remote momayez reviewer; tarahi drafts shaping docs and publishes them to Linear.",
   "author": { "name": "Behnam RK" },
   "repository": "https://github.com/Behnam-RK/maktab",
   "keywords": ["documentation", "adr", "lint", "review", "code-review", "loop", "subagents", "shaping", "linear", "pitch"],
   "skills": "./skills/",
+  "mcpServers": {
+    "momayez": {
+      "command": "bash",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/momayezi.sh", "channel"]
+    }
+  },
+  "channels": [{ "server": "momayez", "displayName": "momayez reviews" }],
   "userConfig": {
     "tahrir_proactivity": {
       "type": "string",

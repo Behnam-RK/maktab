@@ -1,0 +1,117 @@
+"""momayezi-post: publish a review-only ledger as the `momayez` check run and one PR review."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from . import ledger as ledgers
+from .github import Gh, GhError, Target
+from .protocol import CHECK_RUN, FINDING_MARKER, REVIEWER_MARKER
+
+ORDER = {'critical': 0, 'major': 1, 'minor': 2, 'nit': 3}
+
+
+def place(target: Target, repo: str, ledger: ledgers.Ledger) -> ledgers.Ledger:
+    """Fill in what the CI run could not learn: the repo and the PR or ref."""
+    where = dict(ledger['target'], repo=repo)
+    where.pop('pr', None)
+    where.pop('ref', None)
+    where.update({'pr': target.pr} if target.pr else {'ref': target.ref})
+    return ledgers.validate(dict(ledger, target=where))
+
+
+def fresh(ledger: ledgers.Ledger) -> list[dict[str, Any]]:
+    """This round's open findings, most severe first: the ones a reader has not seen."""
+    found = [f for f in ledger['findings'] if f['round'] == ledger['round'] and f['state'] == 'open']
+    return sorted(found, key=lambda f: (ORDER[f['severity']], f['id']))
+
+
+def where(finding: dict[str, Any]) -> str:
+    at = finding['at']
+    end = f'-{at["end_line"]}' if at.get('end_line', at['line']) != at['line'] else ''
+    return f'{at["path"]}:{at["line"]}{end}'
+
+
+def headline(finding: dict[str, Any]) -> str:
+    return f'**{finding["id"]}** {finding["severity"]} · {finding["lens"]} · `{where(finding)}`'
+
+
+def detail(finding: dict[str, Any]) -> str:
+    parts = [f'{headline(finding)} (confidence {finding["confidence"]})', '', finding['claim']]
+    if finding['evidence']:
+        parts += ['', '\n'.join('> ' + line for line in finding['evidence'].splitlines())]
+    if finding['fix']:
+        parts += ['', f'**Fix:** {finding["fix"]}']
+    return '\n'.join(parts)
+
+
+def summary(ledger: ledgers.Ledger) -> str:
+    counts = {s: 0 for s in ORDER}
+    for f in ledger['findings']:
+        if f['state'] == 'open':
+            counts[f['severity']] += 1
+    lines = [
+        f'Round {ledger["round"]} · {ledger["verdict"]} · lenses {", ".join(ledger["lenses"])} '
+        f'on {ledger["model"]} · tier {ledger["tier"]}',
+        'Open: ' + ', '.join(f'{n} {s}' for s, n in counts.items()),
+    ]
+    lines += [f'- {headline(f)}: {f["claim"]}' for f in fresh(ledger)]
+    if ledger['truncated']:
+        lines.append('_Truncated to fit GitHub: nits, then minor detail, were dropped._')
+    lines += [f'> {note}' for note in ledger.get('notes', [])]
+    return '\n'.join(lines)[:60000]
+
+
+def check_run(gh: Gh, ledger: ledgers.Ledger) -> None:
+    head = ledger['target']['head_sha']
+    output = {
+        'title': f'momayez: {ledger["verdict"]}',
+        'summary': summary(ledger),
+        'text': ledgers.to_marker(ledger, REVIEWER_MARKER),
+    }
+    body = {'status': 'completed', 'conclusion': 'neutral', 'output': output}
+    # A run the workflow opened as in-progress is finished in place, not doubled.
+    open_runs = [r for r in gh.runs(head) if r.get('status') != 'completed']
+    if open_runs:
+        gh.api(f'repos/{{repo}}/check-runs/{open_runs[0]["id"]}', 'PATCH', body)
+    else:
+        gh.api('repos/{repo}/check-runs', 'POST', dict(body, name=CHECK_RUN, head_sha=head))
+
+
+def inline(finding: dict[str, Any]) -> dict[str, Any]:
+    at = finding['at']
+    comment = {'path': at['path'], 'line': at['line'], 'side': 'RIGHT',
+               'body': f'{detail(finding)}\n\n<!-- {FINDING_MARKER}{finding["id"]} -->'}
+    if at.get('end_line', at['line']) > at['line']:
+        comment.update(start_line=at['line'], line=at['end_line'], start_side='RIGHT')
+    return comment
+
+
+def review(gh: Gh, pr: int, ledger: ledgers.Ledger) -> str:
+    found = fresh(ledger)
+    if not found:
+        return 'none'
+    head = ledger['target']['head_sha']
+    in_diff = [f for f in found if f['in_diff']]
+    outside = [f for f in found if not f['in_diff']]
+
+    def post(comments: list[dict[str, Any]], body_findings: list[dict[str, Any]]) -> None:
+        body = '\n\n'.join(['**momayez** review: ' + ledger['verdict']] + [detail(f) for f in body_findings])
+        gh.api(f'repos/{{repo}}/pulls/{pr}/reviews', 'POST',
+               {'commit_id': head, 'event': 'COMMENT', 'body': body[:60000], 'comments': comments})
+
+    try:
+        post([inline(f) for f in in_diff], outside)
+        return 'inline'
+    except GhError as exc:
+        # One line outside the diff rejects the whole review: fall back to the body.
+        if exc.status != 422 or not in_diff:
+            raise
+    post([], found)
+    return 'body'
+
+
+def publish(gh: Gh, target: Target, ledger: ledgers.Ledger) -> str:
+    ledger = ledgers.fit(place(target, gh.repo, ledger), REVIEWER_MARKER)
+    check_run(gh, ledger)
+    return review(gh, target.pr, ledger) if target.pr else 'none'
