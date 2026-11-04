@@ -51,9 +51,10 @@ Lenses:  <a, b> on <model>   Cap: <n>   Gate: <command> (<green|red|none>) | n/a
 
 ## A round
 
-1. **Spawn** one reviewer per lens, each fresh, in waves of at most the
-   reviewer cap (step 4): one message per wave, each finishing before the next.
-   Prompt each with the intent brief, its lens brief from lenses.md, the
+1. **Spawn** one reviewer per lens, each fresh, in waves of at most
+   `--max-reviewers`, else `${user_config.momayezi_max_reviewers}` (2 if blank
+   or unsubstituted); smart never raises it. One message per wave, each
+   finishing before the next. Prompt each with the intent brief, its lens brief from lenses.md, the
    target, and from round 2 the ledger. Scope:
    - Round 1 and the capped round: the full target.
    - Other rounds: the last fix diff (regressions) and files no finding has

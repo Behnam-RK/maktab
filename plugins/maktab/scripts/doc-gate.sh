@@ -5,8 +5,8 @@
 
 set -uo pipefail
 
-# The user's own switch: plugin option `tahrir_proactivity` = `off` silences tahrir
-# entirely, this reminder included. Any other value, unset or empty is on: what an
+# The user's own switch: plugin option `tahrir_proactivity` = `off` mutes this
+# reminder (tahrir still runs on request). Any other value, unset or empty is on: what an
 # unset option expands to is not documented, and the shipped default is `suggest`.
 case "$(printf '%s' "${CLAUDE_PLUGIN_OPTION_TAHRIR_PROACTIVITY:-}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')" in
   off) exit 0 ;;

@@ -234,7 +234,7 @@ def test_pin_output_names_the_release_tag(repo, capsys):
 
 
 def test_guide_links_an_unindexed_reused_log_as_a_directory(repo, capsys):
-    # Found by a /tahrir setup dry run: the guide linked a README the reused
+    # Found by a /maktab:tahrir setup dry run: the guide linked a README the reused
     # log never had, so tahrir's own scaffold failed its stale-file-ref rule.
     (repo / 'docs/decisions').mkdir(parents=True)
     (repo / 'docs/decisions/0001-x.md').write_text('# x\n', encoding='utf-8')
