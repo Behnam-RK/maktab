@@ -64,7 +64,7 @@ Lenses:  <a, b> on <model>   Cap: <n>   Gate: <command> (<green|red|none>) | n/a
    the next ledger id (`F1`, `F2`, …).
 3. **Verify** (only with `--verify`): one more reviewer spawn, same model,
    given the surviving findings by ledger id, to answer each `confirmed` or
-   `refuted` with one line of evidence (reviewer.md, Verify mode). Drop
+   `refuted` with one line of evidence (the `momayez` agent, Verify mode). Drop
    refuted ones.
 4. **Decide each finding yourself.** Open the cited line. Real and ≥minor: fix
    it, smallest change, with a test where the project has a test harness and
