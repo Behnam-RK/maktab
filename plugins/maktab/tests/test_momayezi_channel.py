@@ -10,7 +10,7 @@ from gh_fake import HEAD, REPO, gh, run, runs_path, sample
 from momayezi import channel
 from momayezi import ledger as ledgers
 from momayezi.github import GhError
-from momayezi.protocol import EDITOR_MARKER
+from momayezi.protocol import EDITOR_MARKER, EDITOR_RESET
 
 PULL = f'repos/{REPO}/pulls/4'
 
@@ -105,13 +105,52 @@ def test_review_status_pending_done_and_none(no_thread):
     routes = {('GET', PULL): {'head': {'sha': HEAD}}, ('GET', runs_path()): {'check_runs': []},
               ('GET', f'repos/{REPO}/issues/4/comments?per_page=100'): [[]]}
     srv, out, runner = server(routes)
-    assert call(srv, out, 'review_status', {'pr': 4})[0]['status'] == 'none'
+    assert call(srv, out, 'review_status', {'pr': 4})[0] == {'status': 'none', 'pr': '4', 'head_sha': HEAD}
     call(srv, out, 'request_review', {'pr': 4, 'ledger': sample()})
     assert call(srv, out, 'review_status', {'pr': 4})[0]['status'] == 'pending'
     srv.pending.clear()
     runner.routes[('GET', runs_path())] = {'check_runs': [run(2, sample())]}
     done = call(srv, out, 'review_status', {'pr': 4})[0]
-    assert done['status'] == 'done' and done['ledger'] == sample()
+    assert done['status'] == 'done' and done['ledger'] == sample() and done['failed'] is False
+
+
+def test_review_status_sees_runs_it_did_not_request_and_keeps_the_last_ledger():
+    older = dict(sample(), round=1)
+    srv, out, _ = server({('GET', PULL): {'head': {'sha': HEAD}},
+                          ('GET', runs_path()): {'check_runs': [run(3, status='in_progress'), run(1, older)]}})
+    got = call(srv, out, 'review_status', {'pr': 4})[0]
+    assert got['status'] == 'pending' and got['ledger'] == older
+
+
+def test_review_status_flags_a_run_that_carried_no_ledger():
+    srv, out, _ = server({('GET', PULL): {'head': {'sha': HEAD}},
+                          ('GET', runs_path()): {'check_runs': [run(5, text='crashed'), run(1, sample())]}})
+    got = call(srv, out, 'review_status', {'pr': 4})[0]
+    assert got['status'] == 'done' and got['failed'] is True and got['ledger'] == sample()
+
+
+def test_round_one_requests_carry_no_ledger_and_reset_the_pr_history(no_thread):
+    stale = {'id': 9, 'body': f'<!-- {EDITOR_MARKER} {{}} -->'}
+    srv, out, runner = server({('GET', PULL): {'head': {'sha': HEAD}}, ('GET', runs_path()): {'check_runs': []},
+                               ('GET', f'repos/{REPO}/issues/4/comments?per_page=100'): [[[stale]]],
+                               ('GET', f'repos/{REPO}/commits/feat'): {'sha': HEAD}})
+    assert not call(srv, out, 'request_review', {'pr': 4})[1]
+    (body,) = runner.sent('PATCH', f'repos/{REPO}/issues/comments/9')
+    assert body['body'].endswith(EDITOR_RESET) and HEAD in body['body']
+    assert not call(srv, out, 'request_review', {'ref': 'feat', 'ledger': ''})[1]
+    assert runner.calls[-1][2][-1] == 'ledger='
+
+
+def test_the_editor_comment_fits_with_its_prefix(no_thread, monkeypatch):
+    sizes = []
+    real = ledgers.fit
+    monkeypatch.setattr(ledgers, 'fit', lambda l, k, cap=65535: sizes.append(cap) or real(l, k, cap))
+    srv, out, runner = server({('GET', PULL): {'head': {'sha': HEAD}}, ('GET', runs_path()): {'check_runs': []},
+                               ('GET', f'repos/{REPO}/issues/4/comments?per_page=100'): [[]]})
+    call(srv, out, 'request_review', {'pr': 4, 'ledger': sample()})
+    (body,) = runner.sent('POST', f'repos/{REPO}/issues/4/comments')
+    assert sizes == [65535 - len('momayezi editor ledger (round 2)\n')]
+    assert body['body'].startswith('momayezi editor ledger (round 2)\n<!-- ')
 
 
 def test_reply_to_finding():

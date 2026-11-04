@@ -8,7 +8,7 @@ from gh_fake import REPO, gh, run, runs_path, sample
 from momayezi import ledger as ledgers
 from momayezi import prior
 from momayezi.github import Target
-from momayezi.protocol import EDITOR_MARKER
+from momayezi.protocol import EDITOR_MARKER, EDITOR_RESET
 
 COMMITS = f'repos/{REPO}/pulls/4/commits?per_page=100'
 COMMENTS = f'repos/{REPO}/issues/4/comments?per_page=100'
@@ -42,6 +42,15 @@ def test_a_newer_editor_ledger_wins_and_an_older_one_does_not():
     client, _ = gh(routes([reviewed], [], [editor_comment(mine, '2026-11-04T11:00:00Z')]))
     assert prior.from_pr(client, 4) == mine
     client, _ = gh(routes([reviewed], [], [editor_comment(mine, '2026-11-04T09:00:00Z')]))
+    assert prior.from_pr(client, 4) == sample()
+
+
+def test_a_newer_reset_means_no_prior_and_an_older_one_is_ignored():
+    reviewed = run(2, sample(), completed_at='2026-11-04T10:00:00Z')
+    reset = {'id': 3, 'body': f'new loop\n{EDITOR_RESET}'}
+    client, _ = gh(routes([reviewed], [], [dict(reset, updated_at='2026-11-04T11:00:00Z')]))
+    assert prior.from_pr(client, 4) is None
+    client, _ = gh(routes([reviewed], [], [dict(reset, updated_at='2026-11-04T09:00:00Z')]))
     assert prior.from_pr(client, 4) == sample()
 
 

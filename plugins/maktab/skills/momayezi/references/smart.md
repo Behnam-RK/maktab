@@ -23,8 +23,9 @@ The higher tier of lines and files wins; a risky path bumps one tier.
 | Large | < 2000 | any | 2 | 3–4 |
 | Max | ≥ 2000 | any | 3 | 4–5 |
 
-Reviewers are fixed per tier so the same change always gets the same lenses.
-Inside a rounds range, take the low end for repetitive or single-module
+Reviewers is how many run at once, never more than `max_reviewers`; the
+lens set comes from lenses.md alone, so smart on or off picks the same
+lenses. Inside a rounds range, take the low end for repetitive or single-module
 changes and the high end for entangled or cross-module ones.
 
 **Risky**: the `security` rule in [lenses.md](lenses.md) matches a changed

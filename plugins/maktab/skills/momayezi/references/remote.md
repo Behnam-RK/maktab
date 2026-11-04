@@ -24,9 +24,14 @@ stay as in SKILL.md. Only how a round gets its findings changes.
 
 1. **Push**: commit this round's fixes and push. In round 1, push the target
    as it stands.
-2. **Request**: call `request_review` with `pr` or `ref` and your ledger as
-   JSON ([ledger.md](ledger.md)), so the remote round sees your `wont-fix` and
-   `disputed` reasons. The result gives the `head_sha` and a `wait` command.
+2. **Request**: call `request_review` with `pr` or `ref`. From round 2 on,
+   add your ledger as JSON ([ledger.md](ledger.md)), so the remote round sees
+   your `wont-fix` and `disputed` reasons. Round 1 sends none, which resets
+   the PR's review history so the remote starts at round 1. Keep the
+   ledger's `head_sha` as the head the last remote round reviewed, so the
+   remote scope is your fix diff plus uncited files. For the capped round, set
+   it to `base_sha` so the remote reviews the full target. The result gives
+   the new `head_sha` and a `wait` command.
 3. **Wait**: run that command with Bash `run_in_background`, adding
    `--timeout <remote-timeout>` (default 1200). Go on with whichever arrives
    first: the waiter's line, or a `<channel source="plugin:maktab:momayez">`
@@ -35,9 +40,9 @@ stay as in SKILL.md. Only how a round gets its findings changes.
 4. **Timeout or failure**: if the status is `timeout` or `failed`, request
    again. After a second one, stop with `stopping: remote unavailable`.
 5. **Merge**: load the returned ledger and merge it by id (ledger.md). Decide
-   each new finding as in SKILL.md step 4, then run the gate (step 5). For
-   every `wont-fix` and `disputed`, post the reason with `reply_to_finding`
-   (PRs only).
+   each new or re-raised finding as in SKILL.md step 4, then run the gate
+   (step 5). For every `wont-fix` and `disputed`, post the reason with
+   `reply_to_finding` (PRs only).
 6. **Report** the round and apply the stop rules as usual.
 
 When the loop stops, commit and push the last fixes without requesting a

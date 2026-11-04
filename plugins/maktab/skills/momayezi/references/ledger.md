@@ -14,15 +14,17 @@ both feed it, and it is all either end hands on. Its shape is
   `clean`.
 - `cited_files`: every file any finding has cited. "Files no finding has
   cited" is measured against it.
-- `truncated`: set when a size cap dropped detail. `notes`: what a reader
-  must know, such as a missing intent brief or a scope fallback.
+- `truncated`: set when a size cap dropped detail. `last_id`: the highest
+  id issued, kept when truncation drops findings. `notes`: what a reader must
+  know, such as a missing intent brief or a scope fallback.
 
 ## Findings
 
 Map each reviewer `M<n>` block to one finding:
 
 - `id`: the ledger id it matches or names in `ref:`, else the next `F<n>`.
-- `round`: the round it was first raised. A re-raise keeps it.
+- `round`: the round it was first raised. A re-raise keeps it and sets
+  `last_round` to the current round.
 - `lens`, `severity`, `confidence`, `evidence`, `claim`, `fix`: from the
   block as written.
 - `at`: `path`, `line`, and `end_line` for a range.
@@ -39,6 +41,8 @@ your context only as the `request_review` argument or a `--json` final
 message, never as a file.
 
 **In** (a `--ledger` file or a remote review): check it against the schema.
-Keep every finding's id, round, state and reason, and number new findings
-after the highest id. When merging a remote ledger, new ids are new findings;
-for an id you already hold, your state and reason win.
+Keep every finding's id, round, state and reason. Number new findings after
+the larger of `last_id` and the highest id. When merging a remote ledger, new
+ids are new findings. For an id you already hold, your state and reason win,
+unless its `last_round` is this round: then it was raised again, and you
+decide it again as a new finding. A re-raised `wont-fix` gets one more look.

@@ -25,6 +25,8 @@ def test_fresh_is_this_rounds_open_findings_most_severe_first():
     data['findings'].append(dict(data['findings'][1], id='F4', severity='major'))
     data['findings'].append(dict(data['findings'][1], id='F5', state='fixed'))
     assert [f['id'] for f in post.fresh(data)] == ['F2', 'F4', 'F3']
+    data['findings'][0].update(state='open', last_round=2)  # F1 from round 1, raised again
+    assert [f['id'] for f in post.fresh(data)] == ['F2', 'F1', 'F4', 'F3']
 
 
 def test_detail_and_where():

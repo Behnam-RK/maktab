@@ -21,8 +21,9 @@ def place(target: Target, repo: str, ledger: ledgers.Ledger) -> ledgers.Ledger:
 
 
 def fresh(ledger: ledgers.Ledger) -> list[dict[str, Any]]:
-    """This round's open findings, most severe first: the ones a reader has not seen."""
-    found = [f for f in ledger['findings'] if f['round'] == ledger['round'] and f['state'] == 'open']
+    """Open findings raised or re-raised this round, most severe first."""
+    found = [f for f in ledger['findings']
+             if f.get('last_round', f['round']) == ledger['round'] and f['state'] == 'open']
     return sorted(found, key=lambda f: (ORDER[f['severity']], f['id']))
 
 
@@ -57,7 +58,8 @@ def summary(ledger: ledgers.Ledger) -> str:
     ]
     lines += [f'- {headline(f)}: {f["claim"]}' for f in fresh(ledger)]
     if ledger['truncated']:
-        lines.append('_Truncated to fit GitHub: nits, then minor detail, were dropped._')
+        lines.append('_Truncated to fit GitHub: nits, then minor evidence, then minor findings, '
+                     'and last all evidence were dropped._')
     lines += [f'> {note}' for note in ledger.get('notes', [])]
     return '\n'.join(lines)[:60000]
 

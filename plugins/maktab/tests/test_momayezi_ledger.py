@@ -98,7 +98,7 @@ def test_fit_leaves_a_small_ledger_alone():
 
 def test_fit_drops_nits_first():
     data = dict(sample(), findings=big('major', 2) + big('nit', 40))
-    out = ledgers.fit(data, REVIEWER_MARKER, cap=size(dict(data, findings=big('major', 2))) + 10)
+    out = ledgers.fit(data, REVIEWER_MARKER, cap=size(dict(data, findings=big('major', 2))) + 40)
     assert out['truncated'] and {f['severity'] for f in out['findings']} == {'major'}
     assert data['truncated'] is False  # the input is not touched
 
@@ -106,17 +106,17 @@ def test_fit_drops_nits_first():
 def test_fit_then_drops_minor_evidence_then_minor_findings():
     data = dict(sample(), findings=big('major', 2) + big('minor', 40))
     stripped = dict(data, findings=big('major', 2) + big('minor', 40, evidence=0))
-    out = ledgers.fit(data, REVIEWER_MARKER, cap=size(stripped) + 10)
+    out = ledgers.fit(data, REVIEWER_MARKER, cap=size(stripped) + 40)
     assert len(out['findings']) == 42
     assert all(f['evidence'] == '' for f in out['findings'] if f['severity'] == 'minor')
-    out = ledgers.fit(data, REVIEWER_MARKER, cap=size(dict(data, findings=big('major', 2))) + 10)
+    out = ledgers.fit(data, REVIEWER_MARKER, cap=size(dict(data, findings=big('major', 2))) + 40)
     assert [f['severity'] for f in out['findings']] == ['major', 'major']
 
 
 def test_fit_last_drops_all_evidence_then_gives_up():
     data = dict(sample(), findings=big('critical', 40))
     bare = dict(data, findings=big('critical', 40, evidence=0))
-    out = ledgers.fit(data, REVIEWER_MARKER, cap=size(bare) + 10)
+    out = ledgers.fit(data, REVIEWER_MARKER, cap=size(bare) + 40)
     assert len(out['findings']) == 40 and all(f['evidence'] == '' for f in out['findings'])
     with pytest.raises(ledgers.LedgerError, match='does not fit'):
         ledgers.fit(data, REVIEWER_MARKER, cap=100)
@@ -130,3 +130,16 @@ def test_canonical_json_is_compact_and_sorted():
 def test_objects_without_additional_properties_false_accept_extra_keys(monkeypatch):
     monkeypatch.setattr(ledgers, 'schema', lambda: {'type': 'object', 'properties': {'a': {'type': 'string'}}})
     assert ledgers.errors({'a': 'x', 'b': 1}) == []
+
+
+def test_fit_records_the_highest_id_once_it_drops_findings():
+    data = dict(sample(), findings=big('major', 2) + big('nit', 40))
+    out = ledgers.fit(data, REVIEWER_MARKER, cap=size(dict(data, findings=big('major', 2))) + 40)
+    assert out['last_id'] == 139 and ledgers.highest(out) == 139
+    assert 'last_id' not in ledgers.fit(sample(), REVIEWER_MARKER)
+
+
+def test_an_empty_ledger_that_cannot_fit_raises_without_a_last_id():
+    data = dict(sample(), findings=[], notes=['n' * 500])
+    with pytest.raises(ledgers.LedgerError, match='does not fit'):
+        ledgers.fit(data, REVIEWER_MARKER, cap=100)

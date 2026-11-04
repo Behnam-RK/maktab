@@ -90,7 +90,7 @@ Constants in [protocol.py](../src/momayezi/protocol.py):
 | Press label | `review`, removed then re-added on each request |
 | Workflow | `momayez.yaml`, inputs `ref`, `ledger` |
 | Markers | `<!-- momayez-ledger:v1 <json> -->`, editor comment `<!-- momayezi-editor-ledger:v1 <json> -->` |
-| Size cap | 65,535 bytes; drops nits, then minor evidence, then minor findings; `truncated` |
+| Size cap | 65,535 bytes; drops nits, then minor evidence, minor findings, all evidence; `truncated`, `last_id` |
 
 For CI, pin a release: `uvx --from git+https://github.com/Behnam-RK/maktab@maktab--vX.Y.Z <script>`.
 The scripts read `GH_TOKEN` (an App or Actions token, to create check runs)

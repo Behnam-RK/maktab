@@ -14,9 +14,9 @@ the end.
 
 Arguments: `$ARGUMENTS`
 
-**Modes.** `--review-only` (one round for CI, no edits): follow
-[references/review-only.md](references/review-only.md) instead of the loop.
-`--reviewer remote` (the `momayez` check run reviews each round): read
+**Modes.** `--review-only` (one CI round, no edits): follow
+[references/review-only.md](references/review-only.md) instead.
+`--reviewer remote` (the `momayez` check run reviews): read
 [references/remote.md](references/remote.md) before Setup.
 
 ## Setup
@@ -26,7 +26,7 @@ Arguments: `$ARGUMENTS`
    kind (code, prose, mixed) comes from lenses.md "Picking".
 2. **Smart sizing.** On with `--smart`, or `${user_config.momayezi_smart}` = `on`
    unless `--no-smart`. [references/smart.md](references/smart.md) then sets
-   the defaults for steps 4–6, ahead of config; explicit flags win.
+   wave size, model and cap (steps 5–6), ahead of config; explicit flags win.
 3. **Intent brief.** From the conversation, ticket or spec, write once:
    goal, requirements, constraints, out-of-scope. Pinned for every round;
    never rewritten to fit a finding.
@@ -41,8 +41,8 @@ Arguments: `$ARGUMENTS`
 6. **Cap.** `--max-rounds`, else `${user_config.momayezi_max_rounds}` (3 if blank or
    unsubstituted).
 7. **Gate** (code only). Find it per [references/gate.md](references/gate.md).
-   Record the baseline per gate.md; a red one is reported and excluded from
-   the stop check, not fixed silently. Prose: no gate, `n/a`.
+   Record its baseline; a red one is reported and excluded from the stop
+   check, not fixed silently. Prose: no gate, `n/a`.
 8. **Announce** in one block, then start round 1 without waiting:
 
 ```
@@ -56,9 +56,10 @@ Reviewer: local | remote (commits and pushes each round to <branch>)
 ## A round
 
 1. **Spawn** one reviewer per lens, each fresh, in waves of at most the
-   reviewer cap from Setup step 4; smart never raises it. One message per
-   wave, each finishing before the next. Prompt each with the intent brief, its lens brief from lenses.md, the
-   target, from round 2 the ledger, and `Execution: off` with `--no-exec`. Scope:
+   reviewer cap (Setup step 4); smart never raises it. One message per wave,
+   each finishing before the next. Prompt each with the intent brief, its lens brief from lenses.md, the
+   target, from round 2 the ledger, and with `--no-exec` `Execution: off`
+   (the verifier's too). Scope:
    - Round 1 and the capped round: the full target.
    - Other rounds: the last fix diff (regressions) and files no finding has
      cited.

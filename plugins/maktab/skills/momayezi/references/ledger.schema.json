@@ -26,6 +26,7 @@
     "verdict": { "enum": ["clean", "findings"] },
     "cited_files": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "truncated": { "type": "boolean" },
+    "last_id": { "type": "integer", "minimum": 1 },
     "notes": { "type": "array", "items": { "type": "string" } },
     "findings": { "type": "array", "items": { "$ref": "#/definitions/finding" } }
   },
@@ -40,6 +41,7 @@
       "properties": {
         "id": { "type": "string", "pattern": "^F[1-9][0-9]*$" },
         "round": { "type": "integer", "minimum": 1 },
+        "last_round": { "type": "integer", "minimum": 1 },
         "lens": { "$ref": "#/definitions/lens" },
         "severity": { "enum": ["critical", "major", "minor", "nit"] },
         "confidence": { "type": "integer", "minimum": 0, "maximum": 100 },

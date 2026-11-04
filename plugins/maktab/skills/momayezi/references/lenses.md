@@ -4,7 +4,9 @@ Pass a reviewer its lens name and the brief below verbatim.
 
 ## Picking
 
-By changed paths only, so the same list gives the same lenses here and in CI.
+By changed paths, so the same list gives the same lenses here and in CI.
+The one other input is whether an intent brief exists: it always does
+locally, and in CI it does when `--intent` is readable.
 `--lenses` overrides and is never trimmed. Otherwise, from the target's
 `git diff --name-only <base> [<head>]` (plus untracked files locally), run
 each rule below as `… | rg -qi '<pattern>'` (exit 0 = a path matches):
@@ -20,14 +22,15 @@ docs      \.(md|mdx|rst)$|(^|/)docs?/|(^|/)(cli|cmd|bin)(/|\.)|config|settings|\
 1. **Kind**: prose if every path matches `prose` (`rg -vqi` finds none
    that doesn't), code if none does, else mixed.
 2. **Defaults**: code: correctness, spec-fit. Prose: accuracy, clarity.
-   Mixed: correctness, accuracy. Prose and mixed add spec-fit when the intent
-   brief states a requirement.
+   Mixed: correctness, accuracy. Prose and mixed add spec-fit when there is
+   an intent brief.
 3. **Added** (code and mixed): security when `security` matches; tests when
    a path matches `source` but not `test` (`rg -i '<source>' | rg -vqi
    '<test>'`) and no path matches `test`; docs when `docs` matches.
    Performance and simplicity come only from `--lenses`.
-4. **Cap**: keep the first `max_reviewers` (smart's tier count, if lower) in
-   this order: security, correctness, accuracy, spec-fit, tests, docs, clarity.
+4. **Cap**: keep the first `max_reviewers` in this order: security,
+   correctness, accuracy, spec-fit, tests, docs, clarity. Smart never trims
+   this set.
 
 ## correctness
 

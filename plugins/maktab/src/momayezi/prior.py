@@ -8,11 +8,12 @@ import sys
 
 from . import ledger as ledgers
 from .github import Gh, Target, run_ledger
-from .protocol import EDITOR_MARKER
+from .protocol import EDITOR_MARKER, EDITOR_RESET
 
 
 def from_pr(gh: Gh, pr: int) -> ledgers.Ledger | None:
-    """The last `momayez` run on the PR's commits, or the editor's sticky ledger if newer."""
+    """The last `momayez` run on the PR's commits, or the editor's sticky ledger if newer;
+    a newer reset (a new loop's round 1) means no prior at all."""
     best, when = None, ''
     commits = gh.api(f'repos/{{repo}}/pulls/{pr}/commits?per_page=100', pages=True)
     for commit in reversed(commits):
@@ -23,12 +24,16 @@ def from_pr(gh: Gh, pr: int) -> ledgers.Ledger | None:
             when = run.get('completed_at') or ''
             break
     for comment in gh.comments(pr):
+        stamp = comment.get('updated_at') or ''
+        if EDITOR_RESET in comment['body']:
+            if stamp > when:
+                best, when = None, stamp
+            continue
         try:
             found = ledgers.from_marker(comment['body'], EDITOR_MARKER)
         except ledgers.LedgerError as exc:
             print(f'momayezi-prior: skipping comment {comment["id"]}: {exc}', file=sys.stderr)
             continue
-        stamp = comment.get('updated_at') or ''
         if found and stamp > when:
             best, when = found, stamp
     return best

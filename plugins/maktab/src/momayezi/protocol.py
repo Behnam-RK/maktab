@@ -7,6 +7,8 @@ WORKFLOW_INPUTS = ('ref', 'ledger')
 
 REVIEWER_MARKER = 'momayez-ledger:v1'
 EDITOR_MARKER = 'momayezi-editor-ledger:v1'
+# A new loop's round 1: the PR's review history is not its prior.
+EDITOR_RESET = f'<!-- {EDITOR_MARKER} null -->'
 FINDING_MARKER = 'momayez-finding:'
 
 # GitHub's limit on a check run's output.text and on a comment body. Measured in

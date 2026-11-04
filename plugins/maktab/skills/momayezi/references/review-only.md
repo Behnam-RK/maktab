@@ -43,7 +43,9 @@ subagents are `maktab:momayez` reviewers.
      target and add the note `scope: full (prior head unreachable)`.
 6. **Spawn, filter, verify**: SKILL.md "A round", steps 1–3.
 7. **Dedupe** against the ledger's ids, then set `in_diff` and the header per
-   ledger.md. New findings are `open`; prior findings keep their state.
+   ledger.md. New findings are `open`. A prior finding raised again (a
+   `wont-fix` only with new evidence) becomes `open` with this round's
+   evidence and `last_round`. Every other prior finding keeps its state.
 
 Never run step 4 (decide and fix), the gate or the stop rules. Never edit, and
 never start a second round.

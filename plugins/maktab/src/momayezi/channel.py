@@ -15,8 +15,8 @@ from typing import IO, Any
 
 from . import ledger as ledgers
 from . import poll
-from .github import Gh, Target
-from .protocol import DISPATCH_CAP, EDITOR_MARKER, LABEL, PENDING_TTL, WORKFLOW
+from .github import Gh, Target, run_ledger
+from .protocol import CAP, DISPATCH_CAP, EDITOR_MARKER, EDITOR_RESET, LABEL, PENDING_TTL, WORKFLOW
 
 PROTOCOLS = ('2024-11-05', '2025-03-26', '2025-06-18')
 INSTRUCTIONS = (
@@ -32,14 +32,15 @@ TOOLS = [
     {
         'name': 'request_review',
         'description': 'Ask the remote momayez reviewer to review the pushed head of a PR or branch. '
-                       'Attach the editor ledger so wont-fix and disputed reasons carry over. '
-                       'Returns the head and the `momayezi-wait` command to run as the fallback waiter.',
-        'inputSchema': {'type': 'object', 'required': ['ledger'],
+                       'Attach the editor ledger (omit it in round 1) so wont-fix and disputed reasons '
+                       'carry over. Returns the head and the `momayezi-wait` command to run as the waiter.',
+        'inputSchema': {'type': 'object',
                         'properties': {**TARGET, 'ledger': {'type': ['object', 'string']}}},
     },
     {
         'name': 'review_status',
-        'description': 'pending | done | none for the current head of a PR or branch, with the last ledger.',
+        'description': 'pending | done | none for the current head of a PR or branch, with the newest '
+                       'ledger on it (if any); `failed` marks a finished run that carried no ledger.',
         'inputSchema': {'type': 'object', 'properties': TARGET},
     },
     {
@@ -131,16 +132,26 @@ class Server:
     def request_review(self, args: dict[str, Any]) -> dict[str, Any]:
         target = target_of(args)
         raw = args.get('ledger')
-        editor = ledgers.loads(raw) if isinstance(raw, str) else ledgers.validate(raw)
+        if raw in (None, ''):
+            editor = None  # round 1: nothing to carry over
+        elif isinstance(raw, str):
+            editor = ledgers.loads(raw)
+        else:
+            editor = ledgers.validate(raw)
         gh = self.gh
         head = gh.head(target)
         seen = poll.known(gh, head)
         if target.pr:
-            body = ledgers.to_marker(ledgers.fit(editor, EDITOR_MARKER), EDITOR_MARKER)
-            gh.upsert_comment(target.pr, EDITOR_MARKER, f'momayezi editor ledger (round {editor["round"]})\n{body}')
+            # Naming the head keeps each reset edit distinct, so `updated_at` always moves.
+            body = f'momayezi editor ledger: a new loop at {head}, reviewed from scratch\n{EDITOR_RESET}'
+            if editor:
+                prefix = f'momayezi editor ledger (round {editor["round"]})\n'
+                fitted = ledgers.fit(editor, EDITOR_MARKER, CAP - ledgers.size(prefix))
+                body = prefix + ledgers.to_marker(fitted, EDITOR_MARKER)
+            gh.upsert_comment(target.pr, EDITOR_MARKER, body)
             gh.press(target.pr, LABEL)
         else:
-            sent = ledgers.dumps(ledgers.fit(editor, EDITOR_MARKER, DISPATCH_CAP))
+            sent = ledgers.dumps(ledgers.fit(editor, EDITOR_MARKER, DISPATCH_CAP)) if editor else ''
             gh.dispatch(WORKFLOW, {'ref': target.ref, 'ledger': sent})
         self.watch(target, head, seen)
         known = ','.join(str(i) for i in sorted(seen))
@@ -150,12 +161,19 @@ class Server:
     def review_status(self, args: dict[str, Any]) -> dict[str, Any]:
         target = target_of(args)
         head = self.gh.head(target)
-        if (self.gh.repo, head) in self.pending:
-            return {'status': 'pending', **target.meta(), 'head_sha': head}
-        result = poll.check(self.gh, target, head, set())
-        if result is None:
-            return {'status': 'none', **target.meta(), 'head_sha': head}
-        return result
+        runs = self.gh.runs(head)
+        out: dict[str, Any] = {**target.meta(), 'head_sha': head}
+        done = [r for r in runs if r.get('status') == 'completed']
+        for run in done:
+            found = run_ledger(run)
+            if found:
+                out.update(ledger=found, verdict=found['verdict'], url=run.get('html_url', ''))
+                break
+        if (self.gh.repo, head) in self.pending or any(r.get('status') != 'completed' for r in runs):
+            return {'status': 'pending', **out}
+        if not done:
+            return {'status': 'none', **out}
+        return {'status': 'done', **out, 'failed': run_ledger(done[0]) is None}
 
     def reply_to_finding(self, args: dict[str, Any]) -> dict[str, Any]:
         for key in ('pr', 'id', 'text'):

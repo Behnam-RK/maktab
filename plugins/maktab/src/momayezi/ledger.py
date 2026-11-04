@@ -153,14 +153,24 @@ def _shed(ledger: Ledger, step: int) -> None:
             f['evidence'] = ''
 
 
+def highest(ledger: Ledger) -> int:
+    """The highest finding number this ledger has issued, dropped findings included."""
+    ids = [int(f['id'][1:]) for f in ledger['findings']]
+    return max([ledger.get('last_id', 0), *ids])
+
+
 def fit(ledger: Ledger, kind: str, cap: int = CAP) -> Ledger:
-    """A copy of `ledger` whose marker fits `cap` bytes, `truncated` set if anything went."""
+    """A copy of `ledger` whose marker fits `cap` bytes, `truncated` set if anything went.
+    `last_id` keeps the highest id, so a dropped finding's id is never issued again."""
     out = copy.deepcopy(validate(ledger))
+    last = highest(out)
     for step in range(4):
         if size(to_marker(out, kind)) <= cap:
             return out
         _shed(out, step)
         out['truncated'] = True
+        if last:
+            out['last_id'] = last
     if size(to_marker(out, kind)) > cap:
         raise LedgerError(f'ledger does not fit {cap} bytes even without evidence')
     return out
