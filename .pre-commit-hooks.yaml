@@ -1,7 +1,7 @@
-- id: mostofi
-  name: mostofi · doc budget (weighted token caps + in-code doc rules)
+- id: tahrir
+  name: tahrir · doc budget (weighted token caps + in-code doc rules)
   description: Weighted-token caps on markdown, docstring and comment-block rules in code.
-  entry: mostofi check
+  entry: tahrir check
   language: python
   # The repo's own .docs.toml globs decide what is measured; a types_or filter here would
   # silently drop languages the tool supports. Keep pass_filenames on: the gate is diff-aware.

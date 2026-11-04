@@ -21,7 +21,7 @@ grep -qF "$old" hooks/sessionstart.mjs || { echo "patch: routing block line move
 sed -i.bak "s/$old/let additionalContext = \"\";/" hooks/sessionstart.mjs && rm hooks/sessionstart.mjs.bak
 
 # Self-heal code hard-codes the upstream plugin key and re-enables it in settings.json on start.
-grep -rlF 'context-mode@context-mode' --include='*.mjs' . | xargs sed -i.bak 's/context-mode@context-mode/context-mode@toolshed/g'
+grep -rlF 'context-mode@context-mode' --include='*.mjs' . | xargs sed -i.bak 's/context-mode@context-mode/context-mode@maktab/g'
 find . -name '*.mjs.bak' -delete
 
 # Don't deploy a global ~/.claude/hooks/context-mode-cache-heal.mjs + SessionStart hook into the

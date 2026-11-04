@@ -1,0 +1,62 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "maktab",
+  "displayName": "maktab",
+  "version": "2.0.0",
+  "description": "tahrir keeps docs true to code (doc-budget gate, ADRs); momayezi runs a review ↔ fix loop; tarahi drafts shaping docs and publishes them to Linear.",
+  "author": { "name": "Behnam RK" },
+  "repository": "https://github.com/Behnam-RK/maktab",
+  "keywords": ["documentation", "adr", "lint", "review", "code-review", "loop", "subagents", "shaping", "linear", "pitch"],
+  "skills": "./skills/",
+  "userConfig": {
+    "tahrir_proactivity": {
+      "type": "string",
+      "title": "tahrir · Proactivity",
+      "description": "eager: offers a doc pass after code changes. suggest: a one-line offer, then waits. on-request: only when asked or /maktab:tahrir is run. off: on-request, and the prompt-time doc-gate reminder is muted too. A repo's own doc rules still win.",
+      "default": "suggest",
+      "options": ["eager", "suggest", "on-request", "off"]
+    },
+    "tahrir_steward_consent": {
+      "type": "string",
+      "title": "tahrir · Steward pass edits",
+      "description": "apply: edit docs, then report. propose: show the planned edits and wait for a yes. ADRs are always drafted for approval first.",
+      "default": "apply",
+      "options": ["apply", "propose"]
+    },
+    "tahrir_setup_profile": {
+      "type": "string",
+      "title": "tahrir · Setup profile",
+      "description": "Profile /maktab:tahrir setup proposes for a new repo's .docs.toml; the repo's file decides after that.",
+      "default": "default",
+      "options": ["default", "strict"]
+    },
+    "momayezi_reviewer_model": {
+      "type": "string",
+      "title": "momayezi · Reviewer model floor",
+      "description": "Weakest model reviewers may run on. Reviewers get the stronger of this and the editor's own model; /maktab:momayezi --model overrides per run.",
+      "default": "opus",
+      "options": ["haiku", "sonnet", "opus", "fable"]
+    },
+    "momayezi_max_rounds": {
+      "type": "string",
+      "title": "momayezi · Max rounds",
+      "description": "Round cap per loop; the capped round reviews at full scope. /maktab:momayezi --max-rounds overrides per run.",
+      "default": "3",
+      "options": ["1", "2", "3", "4", "5"]
+    },
+    "momayezi_max_reviewers": {
+      "type": "string",
+      "title": "momayezi · Max reviewers",
+      "description": "Most lenses (one reviewer each) auto-picked per round, and most reviewers running at once; an explicit --lenses list is never trimmed and runs in waves of this size. /maktab:momayezi --max-reviewers overrides per run.",
+      "default": "2",
+      "options": ["1", "2", "3", "4", "5"]
+    },
+    "momayezi_smart": {
+      "type": "string",
+      "title": "momayezi · Smart sizing",
+      "description": "Size reviewers, rounds and (for trivial mechanical changes) model from the change's size and risk. /maktab:momayezi --smart or --no-smart overrides per run.",
+      "default": "off",
+      "options": ["off", "on"]
+    }
+  }
+}

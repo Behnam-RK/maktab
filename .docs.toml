@@ -1,5 +1,5 @@
-# Written by `mostofi init` v1.3.0. Every key is optional.
-# `mostofi --explain <rule>` prints the reasoning and knobs for one rule.
+# Written by `tahrir init` v2.0.0. Every key is optional.
+# `tahrir --explain <rule>` prints the reasoning and knobs for one rule.
 profile = "default"
 
 [corpus]
@@ -13,7 +13,7 @@ code_globs = ["*.py", "*.sh"]
 # Templates cite paths as they land in a consuming repo, and skills cite the
 # repos they run in; neither resolves here.
 [[overrides]]
-pattern = "plugins/mostofi/src/docsteward/templates/**"
+pattern = "plugins/maktab/src/docsteward/templates/**"
 rules = { stale-file-ref = "off" }
 
 [[overrides]]

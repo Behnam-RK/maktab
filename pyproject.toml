@@ -1,12 +1,12 @@
-# Packages the mostofi doc gate (plugins/mostofi/src/docsteward) so other repos can pin it:
-# pre-commit through .pre-commit-hooks.yaml, uvx through `mostofi @ git+https://...@<sha>`.
+# Packages the tahrir doc gate (plugins/maktab/src/docsteward) so other repos can pin it:
+# pre-commit through .pre-commit-hooks.yaml, uvx through `tahrir @ git+https://...@<sha>`.
 # Both need the project at the repo root; the Claude plugin itself doesn't use this file.
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "mostofi"
+name = "tahrir"
 dynamic = ["version"]
 description = "Documentation budget gate and stewardship scanner"
 requires-python = ">=3.12"
@@ -19,21 +19,21 @@ exact = ["tiktoken>=0.9,<1"]
 test = ["pytest>=8", "coverage>=7"]
 
 [project.scripts]
-mostofi = "docsteward.cli:main"
+tahrir = "docsteward.cli:main"
 
 [tool.hatch.version]
-path = "plugins/mostofi/src/docsteward/__init__.py"
+path = "plugins/maktab/src/docsteward/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["plugins/mostofi/src/docsteward"]
+packages = ["plugins/maktab/src/docsteward"]
 
 [tool.pytest.ini_options]
-testpaths = ["plugins/mostofi/tests"]
-pythonpath = ["plugins/mostofi/src"]
+testpaths = ["plugins/maktab/tests"]
+pythonpath = ["plugins/maktab/src"]
 
 [tool.coverage.run]
 branch = true
-source = ["plugins/mostofi/src/docsteward"]
+source = ["plugins/maktab/src/docsteward"]
 
 [tool.coverage.report]
 fail_under = 100

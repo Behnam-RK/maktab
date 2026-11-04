@@ -1,5 +1,5 @@
 {
-  "name": "toolshed",
+  "name": "maktab",
   "owner": {
     "name": "Behnam RK"
   },
@@ -18,19 +18,9 @@
       "description": "context-mode MCP tools + session memory, without tool-rewriting hooks or ctx-* skills."
     },
     {
-      "name": "mostofi",
-      "source": "./plugins/mostofi",
-      "description": "Docs steward: keeps docs true to code, captures ADRs, doc-budget gate."
-    },
-    {
-      "name": "momayez",
-      "source": "./plugins/momayez",
-      "description": "Review ↔ fix loop: main agent edits, fresh read-only reviewers, normally on an equal-or-stronger model, critique until clean."
-    },
-    {
-      "name": "dabir",
-      "source": "./plugins/dabir",
-      "description": "Shaping-doc scribe: drafts and revises short shaping docs in one house format, publishes each version to Linear on confirm."
+      "name": "maktab",
+      "source": "./plugins/maktab",
+      "description": "maktab:tahrir keeps docs true to code (doc-budget gate, ADRs); maktab:momayezi runs a review ↔ fix loop; maktab:tarahi drafts shaping docs for Linear."
     }
   ]
 }
