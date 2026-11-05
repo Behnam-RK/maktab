@@ -1,6 +1,6 @@
 # Packages the tahrir doc gate (plugins/maktab/src/docsteward) so other repos can pin it:
 # pre-commit through .pre-commit-hooks.yaml, uvx through `tahrir @ git+https://...@<sha>`.
-# It also ships momayezi's CI end (momayezi-post, -prior, -wait) for the same uvx pin.
+# It also ships momayezi's CI end (momayezi-post, -prior, -wait, -review) for the same uvx pin.
 # Both need the project at the repo root; the Claude plugin itself doesn't use this file.
 [build-system]
 requires = ["hatchling"]
@@ -24,6 +24,7 @@ tahrir = "docsteward.cli:main"
 momayezi-post = "momayezi.cli:post_main"
 momayezi-prior = "momayezi.cli:prior_main"
 momayezi-wait = "momayezi.cli:wait_main"
+momayezi-review = "momayezi.cli:review_main"
 
 [tool.hatch.version]
 path = "plugins/maktab/src/docsteward/__init__.py"

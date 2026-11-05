@@ -65,41 +65,8 @@ outside the checkout, so on the runner:
 
 ## Remote reviewer
 
-`--reviewer remote` keeps the loop, but each round commits, pushes (by the
-repo's rules), calls `request_review` with the ledger and waits up to
-`--remote-timeout` (1200 s), then merges the result by id and replies to each
-`wont-fix` and `disputed`. Two timeouts stop it.
-
-The plugin's `momayez` MCP server (stdlib Python and `gh`) has
-`request_review` (a PR: sticky editor-ledger comment, then the label; a
-branch: the workflow), `review_status` and `reply_to_finding`.
-
-It polls only while a review is pending. The loop always waits with
-`momayezi-wait`; the channel push is extra, under `--channels plugin:maktab@maktab`.
-On Team and Enterprise, an Owner sets `channelsEnabled` and lists
-`{"marketplace": "maktab", "plugin": "maktab"}` in `allowedChannelPlugins`;
-else `--dangerously-load-development-channels` (interactive only).
-
-## Protocol
-
-Constants in [protocol.py](../src/momayezi/protocol.py):
-
-| What | Value |
-|---|---|
-| Check run | `momayez`, conclusion `neutral`, ledger in `output.text` |
-| Press label | `review`, removed then re-added on each request |
-| Workflow | `momayez.yaml`, inputs `ref`, `ledger` |
-| Markers | `<!-- momayez-ledger:v1 <json> -->`, editor comment `<!-- momayezi-editor-ledger:v1 <json> -->` |
-| Size cap | 65,535 bytes; drops nits, then minor evidence, minor findings, all evidence; `truncated`, `last_id` |
-
-For CI, pin a release: `uvx --from git+https://github.com/Behnam-RK/maktab@maktab--vX.Y.Z <script>`.
-The scripts read `GH_TOKEN` (an App or Actions token, to create check runs)
-and `GITHUB_REPOSITORY`:
-
-- `momayezi-post <pr|ref>`: posts the ledger on stdin as the check run, plus
-  one COMMENT review that inlines this round's in-diff findings.
-- `momayezi-prior <pr|ref>`: prints the newest prior ledger.
-- `momayezi-wait <pr|ref> <head_sha>`: waits for the next check run.
+`--reviewer remote`, its backends, PR comments and the wire protocol:
+[momayezi-remote.md](momayezi-remote.md).
 
 ## Config
 
@@ -111,6 +78,8 @@ Set in `/config` or when enabling the plugin:
 | `momayezi_max_rounds` | `3` | Round cap; the capped round reviews at full scope. |
 | `momayezi_max_reviewers` | `2` | Most lenses auto-picked per round, and most reviewers at once. |
 | `momayezi_smart` | `off` | `on` sizes every run like `--smart`; `--no-smart` turns it off per run. |
+| `momayezi_reviewer_backend` | `repo` | `--reviewer remote`'s backend; `repo` reads `.momayez.toml`, else `gh-label`. |
+| `momayezi_pr_comments` | `auto` | `all`, `none` (direct), or `auto` by backend. |
 
 ## Read-only
 

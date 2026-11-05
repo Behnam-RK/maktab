@@ -16,7 +16,7 @@ Arguments: `$ARGUMENTS`
 
 **Modes.** `--review-only` (one CI round, no edits): follow
 [references/review-only.md](references/review-only.md) instead.
-`--reviewer remote` (the `momayez` check run reviews): read
+`--reviewer remote` (the remote momayez reviewer reviews): read
 [references/remote.md](references/remote.md) before Setup.
 
 ## Setup

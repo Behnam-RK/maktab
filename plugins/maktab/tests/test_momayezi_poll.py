@@ -3,6 +3,7 @@ from __future__ import annotations
 from gh_fake import HEAD, gh, run, runs_path, sample
 
 from momayezi import poll
+from momayezi.backend import GhLabel
 from momayezi.github import GhError, Target
 
 PR = Target(pr=4)
@@ -54,12 +55,14 @@ def test_wait_retries_failed_polls_until_the_review_lands():
     landed = {'check_runs': [run(2, sample()), run(1, sample())]}
     client, _ = gh({('GET', runs_path()): [GhError('HTTP 502'), pending, landed]})
     clock = Clock()
-    got = poll.wait(client, PR, HEAD, {1}, timeout=100, sleep=clock.sleep, clock=clock)
+    handle = {'backend': 'gh-label', 'pr': '4', 'head_sha': HEAD, 'known': [1]}
+    got = poll.wait(GhLabel(client), handle, timeout=100, sleep=clock.sleep, clock=clock)
     assert got['status'] == 'done' and clock.slept == [15.0, 22.5]
 
 
 def test_wait_times_out_without_oversleeping():
     client, _ = gh({('GET', runs_path()): {'check_runs': []}})
     clock = Clock()
-    got = poll.wait(client, PR, HEAD, set(), timeout=20, sleep=clock.sleep, clock=clock)
+    handle = {'backend': 'gh-label', 'pr': '4', 'head_sha': HEAD, 'known': []}
+    got = poll.wait(GhLabel(client), handle, timeout=20, sleep=clock.sleep, clock=clock)
     assert got == {'pr': '4', 'head_sha': HEAD, 'status': 'timeout'} and clock.slept == [15.0, 5.0]

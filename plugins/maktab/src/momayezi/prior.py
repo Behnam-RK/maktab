@@ -40,7 +40,7 @@ def from_pr(gh: Gh, pr: int) -> ledgers.Ledger | None:
 
 
 def from_dispatch(env: dict[str, str] | None = None) -> ledgers.Ledger | None:
-    """A branch run's prior is the `ledger` input it was dispatched with."""
+    """A dispatched run's prior, PR or branch, is the `ledger` input it was dispatched with."""
     path = (env if env is not None else os.environ).get('GITHUB_EVENT_PATH')
     if not path:
         return None
@@ -50,5 +50,10 @@ def from_dispatch(env: dict[str, str] | None = None) -> ledgers.Ledger | None:
     return ledgers.loads(text) if text else None
 
 
-def find(gh: Gh, target: Target) -> ledgers.Ledger | None:
-    return from_pr(gh, target.pr) if target.pr else from_dispatch()
+def find(gh: Gh, target: Target, env: dict[str, str] | None = None) -> ledgers.Ledger | None:
+    """A dispatched run's prior is its `ledger` input, PR or branch alike; a PR's labelled run
+    reads the PR's history."""
+    env = dict(os.environ) if env is None else env
+    if env.get('GITHUB_EVENT_NAME') == 'workflow_dispatch' or not target.pr:
+        return from_dispatch(env)
+    return from_pr(gh, target.pr)

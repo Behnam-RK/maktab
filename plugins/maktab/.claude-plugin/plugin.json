@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "maktab",
   "displayName": "maktab",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "tahrir keeps docs true to code (doc-budget gate, ADRs); momayezi runs a review ↔ fix loop, locally or against the remote momayez reviewer; tarahi drafts shaping docs and publishes them to Linear.",
   "author": { "name": "Behnam RK" },
   "repository": "https://github.com/Behnam-RK/maktab",
@@ -11,7 +11,11 @@
   "mcpServers": {
     "momayez": {
       "command": "bash",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/momayezi.sh", "channel"]
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/momayezi.sh", "channel"],
+      "env": {
+        "MOMAYEZI_USER_REVIEWER_BACKEND": "${user_config.momayezi_reviewer_backend}",
+        "MOMAYEZI_USER_PR_COMMENTS": "${user_config.momayezi_pr_comments}"
+      }
     }
   },
   "channels": [{ "server": "momayez", "displayName": "momayez reviews" }],
@@ -64,6 +68,20 @@
       "description": "Size reviewers, rounds and (for trivial mechanical changes) model from the change's size and risk. /maktab:momayezi --smart or --no-smart overrides per run.",
       "default": "off",
       "options": ["off", "on"]
+    },
+    "momayezi_reviewer_backend": {
+      "type": "string",
+      "title": "momayezi · Remote reviewer backend",
+      "description": "What starts a --reviewer remote round. repo: the repo's .momayez.toml backend, else gh-label. gh-label: the PR's review label. gh-dispatch: a momayez.yaml dispatch, which fires no pull_request workflow. k8s-job: a Job from the repo's template. $MOMAYEZI_REVIEWER_BACKEND overrides.",
+      "default": "repo",
+      "options": ["repo", "gh-label", "gh-dispatch", "k8s-job"]
+    },
+    "momayezi_pr_comments": {
+      "type": "string",
+      "title": "momayezi · PR comments",
+      "description": "all: the editor-ledger comment, finding replies and the reviewer's post. none: ledgers go straight between the loop and the reviewer, and nothing is written to the PR (not with gh-label). auto: all for gh-label and gh-dispatch, none for k8s-job.",
+      "default": "auto",
+      "options": ["auto", "all", "none"]
     }
   }
 }

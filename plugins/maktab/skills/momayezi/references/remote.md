@@ -1,14 +1,14 @@
 # Remote reviewer
 
 `--reviewer remote [--remote-timeout <s>]`: each round's review comes from
-the remote `momayez` check run, which runs [review-only mode](review-only.md)
-on the pushed head. Setup, the ledger, decisions, the gate and the stop rules
+the remote momayez reviewer, which runs [review-only mode](review-only.md) on
+the pushed head through the configured backend. Setup, the ledger, decisions, the gate and the stop rules
 stay as in SKILL.md. Only how a round gets its findings changes.
 
 ## Setup
 
 - **Where**: the current branch's PR (`gh pr view --json number`), else the
-  branch itself, which is reviewed through a workflow dispatch.
+  branch itself, which is reviewed through the backend.
 - **Push**: announce
   `Reviewer: remote (commits and pushes each round to <branch>)`. A push
   leaves the machine, so follow the repo's commit and push rules from
@@ -18,7 +18,10 @@ stay as in SKILL.md. Only how a round gets its findings changes.
   defaults only. Announce what it will pick.
 - **Tools**: the `momayez` MCP server's `request_review`, `review_status` and
   `reply_to_finding`. If they are missing, the server failed to start: say so
-  and stop.
+  and stop. A tool error about the backend or `.momayez.toml` is a setup
+  problem: report it and stop.
+- **Backend**: `request_review` starts the round through the configured one
+  (`gh-label`, `gh-dispatch` or `k8s-job`) and says which. Announce it.
 
 ## Each round
 
@@ -42,7 +45,8 @@ stay as in SKILL.md. Only how a round gets its findings changes.
 5. **Merge**: load the returned ledger and merge it by id (ledger.md). Decide
    each new or re-raised finding as in SKILL.md step 4, then run the gate
    (step 5). For every `wont-fix` and `disputed`, post the reason with
-   `reply_to_finding` (PRs only).
+   `reply_to_finding` (PRs only). If it answers `skipped`, PR comments are
+   off: the reasons still travel in your ledger, so don't retry.
 6. **Report** the round and apply the stop rules as usual.
 
 When the loop stops, commit and push the last fixes without requesting a

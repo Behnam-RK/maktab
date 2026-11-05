@@ -113,7 +113,10 @@ def review(gh: Gh, pr: int, ledger: ledgers.Ledger) -> str:
     return 'body'
 
 
-def publish(gh: Gh, target: Target, ledger: ledgers.Ledger) -> str:
+def publish(gh: Gh, target: Target, ledger: ledgers.Ledger, with_check_run: bool = True) -> str:
+    """Post the ledger. Only a GitHub App may create check runs, so a caller posting with its
+    own token (k8s-job under pr_comments=all) passes with_check_run=False."""
     ledger = ledgers.fit(place(target, gh.repo, ledger), REVIEWER_MARKER)
-    check_run(gh, ledger)
+    if with_check_run:
+        check_run(gh, ledger)
     return review(gh, target.pr, ledger) if target.pr else 'none'

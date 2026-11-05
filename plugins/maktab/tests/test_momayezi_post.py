@@ -112,3 +112,10 @@ def test_publish_for_a_pr_and_for_a_ref():
     client, runner = gh({('GET', runs_path()): {'check_runs': []}})
     assert post.publish(client, Target(ref='b'), sample()) == 'none'
     assert not runner.sent('POST', REVIEWS)
+
+
+def test_publish_without_a_check_run_posts_only_the_review():
+    client, runner = gh()
+    assert post.publish(client, Target(pr=4), sample(), with_check_run=False) == 'inline'
+    assert not runner.sent('POST', CHECKS) and not runner.sent('GET', runs_path())
+    assert len(runner.sent('POST', REVIEWS)) == 1

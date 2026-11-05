@@ -13,10 +13,12 @@ import time
 from collections.abc import Callable
 from typing import IO, Any
 
+from . import backend as backends
+from . import config
 from . import ledger as ledgers
-from . import poll
-from .github import Gh, Target, run_ledger
-from .protocol import CAP, DISPATCH_CAP, EDITOR_MARKER, EDITOR_RESET, LABEL, PENDING_TTL, WORKFLOW
+from . import poll, post
+from .github import Gh, Target
+from .protocol import CAP, EDITOR_MARKER, EDITOR_RESET, PENDING_TTL
 
 PROTOCOLS = ('2024-11-05', '2025-03-26', '2025-06-18')
 INSTRUCTIONS = (
@@ -31,9 +33,10 @@ TARGET = {
 TOOLS = [
     {
         'name': 'request_review',
-        'description': 'Ask the remote momayez reviewer to review the pushed head of a PR or branch. '
-                       'Attach the editor ledger (omit it in round 1) so wont-fix and disputed reasons '
-                       'carry over. Returns the head and the `momayezi-wait` command to run as the waiter.',
+        'description': 'Ask the remote momayez reviewer to review the pushed head of a PR or branch, '
+                       'through the configured backend. Attach the editor ledger (omit it in round 1) so '
+                       'wont-fix and disputed reasons carry over. Returns the head and the `momayezi-wait` '
+                       'command to run as the waiter.',
         'inputSchema': {'type': 'object',
                         'properties': {**TARGET, 'ledger': {'type': ['object', 'string']}}},
     },
@@ -45,7 +48,8 @@ TOOLS = [
     },
     {
         'name': 'reply_to_finding',
-        'description': "Reply to a momayez finding on its inline thread, or on the PR when it was outside the diff.",
+        'description': 'Reply to a momayez finding on its inline thread, or on the PR when it was outside '
+                       'the diff. Skipped when momayezi_pr_comments resolves to none.',
         'inputSchema': {'type': 'object', 'required': ['pr', 'id', 'text'],
                         'properties': {'pr': TARGET['pr'], 'id': {'type': 'string', 'pattern': '^F[1-9][0-9]*$'},
                                        'text': {'type': 'string'}}},
@@ -66,9 +70,12 @@ def target_of(args: dict[str, Any]) -> Target:
 
 class Server:
     def __init__(self, out: IO[str], gh: Callable[[], Gh] = Gh.here,
+                 settings: Callable[[], config.Settings] = config.load,
+                 make: Callable[[config.Settings, Gh], backends.Backend] = backends.make,
                  sleep: Callable[[float], None] = time.sleep,
                  clock: Callable[[], float] = time.monotonic):
         self.out, self.make_gh, self.sleep, self.clock = out, gh, sleep, clock
+        self.settings, self.make = settings, make
         self.lock = threading.Lock()
         self.pending: dict[tuple[str, str], dict[str, Any]] = {}
         self.poller: threading.Thread | None = None
@@ -138,10 +145,11 @@ class Server:
             editor = ledgers.loads(raw)
         else:
             editor = ledgers.validate(raw)
+        settings = self.settings()
         gh = self.gh
+        backend = self.make(settings, gh)
         head = gh.head(target)
-        seen = poll.known(gh, head)
-        if target.pr:
+        if target.pr and settings.pr_comments == 'all':
             # Naming the head keeps each reset edit distinct, so `updated_at` always moves.
             body = f'momayezi editor ledger: a new loop at {head}, reviewed from scratch\n{EDITOR_RESET}'
             if editor:
@@ -149,61 +157,61 @@ class Server:
                 fitted = ledgers.fit(editor, EDITOR_MARKER, CAP - ledgers.size(prefix))
                 body = prefix + ledgers.to_marker(fitted, EDITOR_MARKER)
             gh.upsert_comment(target.pr, EDITOR_MARKER, body)
-            gh.press(target.pr, LABEL)
-        else:
-            sent = ledgers.dumps(ledgers.fit(editor, EDITOR_MARKER, DISPATCH_CAP)) if editor else ''
-            gh.dispatch(WORKFLOW, {'ref': target.ref, 'ledger': sent})
-        self.watch(target, head, seen)
-        known = ','.join(str(i) for i in sorted(seen))
-        wait = f'momayezi-wait {target.pr or target.ref} {head}' + (f' --known {known}' if known else '')
-        return {'status': 'requested', **target.meta(), 'head_sha': head, 'wait': wait}
+        handle = backend.request(target, head, editor)
+        # Only a GitHub workflow posts for itself; for the rest the caller posts, if anyone does.
+        self.watch(backend, handle, post=settings.pr_comments == 'all' and backend.name == 'k8s-job')
+        return {'status': 'requested', **target.meta(), 'head_sha': head, 'backend': backend.name,
+                'wait': backends.wait_hint(target, head, handle)}
 
     def review_status(self, args: dict[str, Any]) -> dict[str, Any]:
         target = target_of(args)
+        backend = self.make(self.settings(), self.gh)
         head = self.gh.head(target)
-        runs = self.gh.runs(head)
-        out: dict[str, Any] = {**target.meta(), 'head_sha': head}
-        done = [r for r in runs if r.get('status') == 'completed']
-        for run in done:
-            found = run_ledger(run)
-            if found:
-                out.update(ledger=found, verdict=found['verdict'], url=run.get('html_url', ''))
-                break
-        if (self.gh.repo, head) in self.pending or any(r.get('status') != 'completed' for r in runs):
-            return {'status': 'pending', **out}
-        if not done:
-            return {'status': 'none', **out}
-        return {'status': 'done', **out, 'failed': run_ledger(done[0]) is None}
+        out = backend.status(target, head)
+        if (self.gh.repo, head) in self.pending:
+            out['status'] = 'pending'
+        return out
 
     def reply_to_finding(self, args: dict[str, Any]) -> dict[str, Any]:
         for key in ('pr', 'id', 'text'):
             if not args.get(key):
                 raise ToolError(f'{key} is required')
+        if self.settings().pr_comments == 'none':
+            return {'status': 'skipped', 'reason': 'momayezi_pr_comments is none: nothing goes to the PR'}
         where = self.gh.reply(int(args['pr']), str(args['id']), str(args['text']))
         return {'status': 'posted', 'on': where}
 
     # --- polling: only while something is pending
 
-    def watch(self, target: Target, head: str, seen: set[int]) -> None:
+    def watch(self, backend: backends.Backend, handle: dict[str, Any], post: bool = False) -> None:
         with self.lock:
-            self.pending[(self.gh.repo, head)] = {'target': target, 'seen': seen, 'since': self.clock()}
+            self.pending[(self.gh.repo, handle['head_sha'])] = {
+                'backend': backend, 'handle': handle, 'post': post, 'since': self.clock()}
             if self.poller is None or not self.poller.is_alive():
                 self.poller = threading.Thread(target=self.poll, daemon=True)
                 self.poller.start()
 
     def poll_once(self) -> None:
         for key, entry in list(self.pending.items()):
-            _, head = key
             if self.clock() - entry['since'] > PENDING_TTL:
                 self.pending.pop(key, None)
                 continue
             try:
-                result = poll.check(self.gh, entry['target'], head, entry['seen'])
-            except Exception:  # a transient gh failure; the next poll retries
+                result = entry['backend'].check(entry['handle'])
+            except Exception:  # a transient gh or kubectl failure; the next poll retries
                 continue
             if result:
                 self.pending.pop(key, None)
+                if entry['post'] and result['status'] == 'done':
+                    self.publish(result)
                 self.emit(result)
+
+    def publish(self, result: dict[str, Any]) -> None:
+        """Post a review the backend could not post itself, with the caller's token."""
+        try:
+            post.publish(self.gh, Target.from_meta(result), result['ledger'], with_check_run=False)
+        except Exception as exc:  # the loop needs the ledger more than the PR needs the post
+            result['post_error'] = f'{type(exc).__name__}: {exc}'
 
     def poll(self) -> None:
         nxt = poll.intervals()
@@ -218,6 +226,8 @@ class Server:
     def emit(self, result: dict[str, Any]) -> None:
         meta = {k: str(result[k]) for k in ('pr', 'ref', 'head_sha') if k in result}
         meta['verdict'] = result.get('verdict') or result['status']
+        if 'post_error' in result:  # the ledger still arrives; say the PR never got it
+            meta['post_error'] = result['post_error']
         content = ledgers.dumps(result['ledger']) if 'ledger' in result else json.dumps(result)
         self.send({'method': 'notifications/claude/channel', 'params': {'content': content, 'meta': meta}})
 

@@ -11,8 +11,10 @@ from pathlib import Path
 import pytest
 from gh_fake import HEAD, REPO, FakeRunner, run, runs_path, sample
 
-from momayezi import channel, cli, github
+from momayezi import channel, cli, github, review
 from momayezi import ledger as ledgers
+from momayezi.github import Target
+from momayezi.protocol import REVIEWER_MARKER
 
 PLUGIN = Path(__file__).resolve().parents[1]
 
@@ -55,6 +57,44 @@ def test_wait_prints_one_json_line(fake, capsys):
     assert got['status'] == 'done' and got['url'] == 'https://x/3'
 
 
+def test_wait_follows_a_handle(fake, capsys):
+    fake.routes[('GET', f'repos/{REPO}/actions/runs/7')] = {'id': 7, 'status': 'completed', 'conclusion': 'failure'}
+    handle = json.dumps({'backend': 'gh-dispatch', 'pr': '4', 'head_sha': HEAD, 'run_id': 7})
+    assert cli.main(['wait', '4', HEAD, '--handle', handle, '--timeout', '1']) == 0
+    assert json.loads(capsys.readouterr().out)['reason'] == 'the review run ended failure'
+
+
+@pytest.mark.parametrize('handle', ['[1]', '{"pr": "4"}', 'nope'])
+def test_wait_rejects_a_bad_handle(handle, capsys):
+    with pytest.raises(SystemExit):
+        cli.main(['wait', '4', HEAD, '--handle', handle])
+    assert 'invalid _handle value' in capsys.readouterr().err
+
+
+def test_review_prints_the_ledger_marker(monkeypatch, tmp_path, capsys):
+    seen = []
+
+    def fake_review(gh, target, head, prior, workdir):
+        seen.append((gh.repo, target, head, prior, workdir))
+        return sample()
+    monkeypatch.setattr(review, 'review', fake_review)
+    (tmp_path / 'prior.json').write_text('{"x": 1}', encoding='utf-8')
+    assert cli.main(['review', '--repo', REPO, '--pr', '4', '--head', HEAD,
+                     '--ledger-file', str(tmp_path / 'prior.json'), '--workdir', str(tmp_path)]) == 0
+    assert ledgers.from_marker(capsys.readouterr().out, REVIEWER_MARKER) == sample()
+    assert seen == [(REPO, Target(pr=4), HEAD, '{"x": 1}', tmp_path)]
+    assert cli.main(['review', '--repo', REPO, '--ref', 'feat', '--head', HEAD]) == 0
+    assert seen[-1][1] == Target(ref='feat') and seen[-1][3] == '' and seen[-1][4].name.startswith('momayez-')
+
+
+def test_review_failures_exit_1(monkeypatch, capsys):
+    def broken(*a):
+        raise review.ReviewError('#4 comes from a fork: no review')
+    monkeypatch.setattr(review, 'review', broken)
+    assert cli.main(['review', '--repo', REPO, '--pr', '4', '--head', HEAD]) == 1
+    assert capsys.readouterr().err == 'momayezi-review: #4 comes from a fork: no review\n'
+
+
 def test_gh_failures_exit_1(monkeypatch, capsys):
     def broken(cls, repo=None, run=None):
         raise github.GhError('not logged in')
@@ -68,7 +108,8 @@ def test_channel_command_serves_stdio(monkeypatch):
     assert cli.main(['channel']) == 7
 
 
-@pytest.mark.parametrize('entry, command', [('post_main', 'post'), ('prior_main', 'prior'), ('wait_main', 'wait')])
+@pytest.mark.parametrize('entry, command', [('post_main', 'post'), ('prior_main', 'prior'), ('wait_main', 'wait'),
+                                            ('review_main', 'review')])
 def test_console_scripts_prefix_their_command(monkeypatch, entry, command):
     seen = []
     monkeypatch.setattr(cli, 'main', lambda argv: seen.append(argv) or 0)

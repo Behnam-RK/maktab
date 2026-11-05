@@ -6,12 +6,13 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 from . import ledger as ledgers
-from .protocol import CHECK_RUN, FINDING_MARKER, REVIEWER_MARKER
+from .protocol import ARTIFACT, CHECK_RUN, FINDING_MARKER, REVIEWER_MARKER
 
 Runner = Callable[[list[str], str | None], str]
 
@@ -47,6 +48,11 @@ class Target:
         if not text:
             raise ValueError('a PR number or a ref is required')
         return cls(pr=int(text)) if text.isdigit() else cls(ref=text)
+
+    @classmethod
+    def from_meta(cls, meta: dict[str, Any]) -> Target:
+        """The inverse of meta(): a handle or result names its target this way."""
+        return cls(pr=int(meta['pr'])) if meta.get('pr') else cls(ref=str(meta['ref']))
 
     @property
     def label(self) -> str:
@@ -89,6 +95,30 @@ class Gh:
         data = self.api(f'repos/{{repo}}/commits/{sha}/check-runs?check_name={CHECK_RUN}&per_page=100')
         return sorted(data['check_runs'], key=lambda r: r['id'], reverse=True)
 
+    def default_branch(self) -> str:
+        return self.api('repos/{repo}')['default_branch']
+
+    def workflow_run(self, run_id: int) -> dict[str, Any]:
+        return self.api(f'repos/{{repo}}/actions/runs/{run_id}')
+
+    def dispatched_runs(self, workflow: str) -> list[dict[str, Any]]:
+        """The workflow's recent dispatch runs, newest first."""
+        path = f'repos/{{repo}}/actions/workflows/{workflow}/runs?event=workflow_dispatch&per_page=50'
+        return sorted(self.api(path)['workflow_runs'], key=lambda r: r['id'], reverse=True)
+
+    def artifact_ledger(self, run_id: int) -> ledgers.Ledger | None:
+        """The ledger a run left in its momayez-ledger artifact; None when it left none."""
+        names = {a['name'] for a in self.api(f'repos/{{repo}}/actions/runs/{run_id}/artifacts')['artifacts']}
+        if ARTIFACT not in names:
+            return None
+        with tempfile.TemporaryDirectory() as where:
+            self.run(['run', 'download', str(run_id), '--repo', self.repo, '-n', ARTIFACT, '-D', where], None)
+            path = os.path.join(where, 'ledger.json')
+            if not os.path.isfile(path):
+                return None
+            with open(path, encoding='utf-8') as handle:
+                return ledgers.loads(handle.read())
+
     def comments(self, pr: int) -> list[dict[str, Any]]:
         return self.api(f'repos/{{repo}}/issues/{pr}/comments?per_page=100', pages=True)
 
@@ -116,6 +146,14 @@ class Gh:
         for key, value in inputs.items():
             args += ['-f', f'{key}={value}']
         self.run(args, None)
+
+    def dispatch_run(self, workflow: str, inputs: dict[str, str]) -> int:
+        """Dispatch `workflow` on the default branch and return the run it started."""
+        body = {'ref': self.default_branch(), 'inputs': inputs, 'return_run_details': True}
+        out = self.api(f'repos/{{repo}}/actions/workflows/{workflow}/dispatches', 'POST', body)
+        if not out or not out.get('workflow_run_id'):
+            raise GhError('the dispatch returned no run id (GitHub API too old for return_run_details?)')
+        return int(out['workflow_run_id'])
 
     def reply(self, pr: int, finding: str, text: str) -> str:
         """Reply on `finding`'s inline thread, else on the PR, where its summary lives."""

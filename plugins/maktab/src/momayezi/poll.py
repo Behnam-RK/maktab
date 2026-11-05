@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from . import ledger as ledgers
-from .github import Gh, GhError, Target, run_ledger
+from .github import Gh, Target, run_ledger
 from .protocol import POLL_BACKOFF, POLL_FIRST, POLL_MAX, WAIT_TIMEOUT
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .backend import Backend
 
 Result = dict[str, Any]
 
@@ -19,7 +21,7 @@ def known(gh: Gh, head: str) -> set[int]:
 
 
 def check(gh: Gh, target: Target, head: str, seen: set[int]) -> Result | None:
-    """The finished review of `head`, or None while it is pending."""
+    """The review of `head` posted as a new `momayez` check run, or None while it is pending."""
     for run in gh.runs(head):
         if run['id'] in seen or run.get('status') != 'completed':
             continue
@@ -29,6 +31,15 @@ def check(gh: Gh, target: Target, head: str, seen: set[int]) -> Result | None:
             return {**base, 'status': 'failed', 'conclusion': run.get('conclusion')}
         return {**base, 'status': 'done', 'verdict': found['verdict'], 'ledger': found}
     return None
+
+
+def summary(result: Result) -> Result:
+    """A finished review as `review_status` reports it: done, with a ledger or `failed`."""
+    out = {k: result[k] for k in ('pr', 'ref', 'head_sha', 'url', 'job') if k in result}
+    if result['status'] == 'done':
+        return {'status': 'done', **out, 'ledger': result['ledger'], 'verdict': result['verdict'], 'failed': False}
+    why = {k: result[k] for k in ('reason', 'conclusion') if k in result}
+    return {'status': 'done', **out, 'failed': True, **why}
 
 
 def intervals() -> Callable[[], float]:
@@ -41,7 +52,7 @@ def intervals() -> Callable[[], float]:
     return step
 
 
-def wait(gh: Gh, target: Target, head: str, seen: set[int], timeout: float = WAIT_TIMEOUT,
+def wait(backend: Backend, handle: dict[str, Any], timeout: float = WAIT_TIMEOUT,
          sleep: Callable[[float], None] = time.sleep,
          clock: Callable[[], float] = time.monotonic) -> Result:
     """Poll until the review lands or `timeout` passes. A failed poll is retried, not fatal."""
@@ -49,12 +60,12 @@ def wait(gh: Gh, target: Target, head: str, seen: set[int], timeout: float = WAI
     nxt = intervals()
     while True:
         try:
-            result = check(gh, target, head, seen)
-        except (GhError, ledgers.LedgerError, KeyError, ValueError):
+            result = backend.check(handle)
+        except (RuntimeError, OSError, ValueError, KeyError):  # gh, kubectl or a bad answer
             result = None
         if result:
             return result
         remaining = deadline - clock()
         if remaining <= 0:
-            return {**target.meta(), 'head_sha': head, 'status': 'timeout'}
+            return {**Target.from_meta(handle).meta(), 'head_sha': handle['head_sha'], 'status': 'timeout'}
         sleep(min(nxt(), remaining))

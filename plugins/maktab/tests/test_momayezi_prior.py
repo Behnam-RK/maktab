@@ -81,3 +81,12 @@ def test_find_dispatches_on_the_target(monkeypatch):
     client, _ = gh(routes([run(2, sample())], [], []))
     assert prior.find(client, Target(pr=4)) == sample()
     assert prior.find(client, Target(ref='b')) is None
+
+
+def test_a_dispatched_pr_run_reads_only_its_input(tmp_path):
+    event = tmp_path / 'event.json'
+    event.write_text(json.dumps({'inputs': {'pr': '4', 'ledger': ''}}), encoding='utf-8')
+    client, runner = gh(routes([run(2, sample())], [], []))
+    env = {'GITHUB_EVENT_NAME': 'workflow_dispatch', 'GITHUB_EVENT_PATH': str(event)}
+    assert prior.find(client, Target(pr=4), env) is None and not runner.calls
+    assert prior.find(client, Target(pr=4), {'GITHUB_EVENT_NAME': 'pull_request'}) == sample()
