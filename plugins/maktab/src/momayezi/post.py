@@ -1,4 +1,4 @@
-"""momayezi-post: publish a review-only ledger as the `momayez` check run and one PR review."""
+"""momayezi-post: publish a review-only ledger as the `momayezi` check run and one PR review."""
 
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ def summary(ledger: ledgers.Ledger) -> str:
 
 
 def finish(gh: Gh, head: str, body: dict[str, Any]) -> None:
-    """Complete the `momayez` check run on `head`: the one the workflow opened as in progress,
+    """Complete the `momayezi` check run on `head`: the one the workflow opened as in progress,
     finished in place rather than doubled, else a new one."""
     open_runs = [r for r in gh.runs(head) if r.get('status') != 'completed']
     if open_runs:
@@ -78,7 +78,7 @@ def finish(gh: Gh, head: str, body: dict[str, Any]) -> None:
 
 def check_run(gh: Gh, ledger: ledgers.Ledger) -> None:
     output = {
-        'title': f'momayez: {ledger["verdict"]}',
+        'title': f'momayezi: {ledger["verdict"]}',
         'summary': summary(ledger),
         'text': ledgers.to_marker(ledger, REVIEWER_MARKER),
     }
@@ -93,10 +93,10 @@ def check_run(gh: Gh, ledger: ledgers.Ledger) -> None:
 
 
 def error_run(gh: Gh, head: str, why: failures.Failure) -> str:
-    """A review that left no ledger, posted as a failed `momayez` check run that says why."""
+    """A review that left no ledger, posted as a failed `momayezi` check run that says why."""
     told = why['reason'] + (f' (resets {why["resets_at"]})' if 'resets_at' in why else '')
     finish(gh, head, {'status': 'completed', 'conclusion': 'failure', 'output': {
-        'title': f'momayez: {why["status"]}', 'summary': told[:60000], 'text': f'<!-- {failures.line(why)} -->'}})
+        'title': f'momayezi: {why["status"]}', 'summary': told[:60000], 'text': f'<!-- {failures.line(why)} -->'}})
     return why['status']
 
 
@@ -118,7 +118,7 @@ def review(gh: Gh, pr: int, ledger: ledgers.Ledger) -> str:
     outside = [f for f in found if not f['in_diff']]
 
     def post(comments: list[dict[str, Any]], body_findings: list[dict[str, Any]]) -> None:
-        body = '\n\n'.join(['**momayez** review: ' + ledger['verdict']] + [detail(f) for f in body_findings])
+        body = '\n\n'.join(['**momayezi** review: ' + ledger['verdict']] + [detail(f) for f in body_findings])
         gh.api(f'repos/{{repo}}/pulls/{pr}/reviews', 'POST',
                {'commit_id': head, 'event': 'COMMENT', 'body': body[:60000], 'comments': comments})
 

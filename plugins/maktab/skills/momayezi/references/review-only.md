@@ -5,7 +5,7 @@
               [--lenses a,b] [--model m] [--max-reviewers n] [--verify]
 ```
 
-One review round and no edits. This is what the remote `momayez` check run
+One review round and no edits. This is what the remote `momayezi` check run
 executes. It uses the same reviewers, lenses and ledger as the loop, so local
 and remote findings agree.
 
@@ -22,7 +22,7 @@ Execution is off. Every reviewer prompt carries `Execution: off`. Your own
 Bash is limited to `rg`, `git diff|log|show|blame|ls-files|check-attr`, `ls` and `wc`, run
 from the checkout. Never use `git -C`, and never pipe into anything outside
 that list. Read files with Read. Measure and pick lenses yourself; the only
-subagents are `maktab:momayez` reviewers.
+subagents are `maktab:momayezi` reviewers.
 
 ## Steps
 

@@ -1,6 +1,6 @@
 # Ledger
 
-The loop's one interface. Local reviewers and the remote `momayez` check run
+The loop's one interface. Local reviewers and the remote `momayezi` check run
 both feed it, and it is all either end hands on. Its shape is
 [ledger.schema.json](ledger.schema.json) (`v2`).
 

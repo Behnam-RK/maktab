@@ -5,12 +5,12 @@ import pytest
 from momayezi import config
 from momayezi.config import ConfigError, K8s, Settings
 
-K8S_FILE = 'backend = "k8s-job"\n[k8s]\ntemplate = "ops/momayez-job.yaml"\nnamespace = "momayez"\n'
+K8S_FILE = 'backend = "k8s-job"\n[k8s]\ntemplate = "ops/momayezi-job.yaml"\nnamespace = "momayezi"\n'
 
 
 def load(tmp_path, text=None, **env):
     if text is not None:
-        (tmp_path / '.momayez.toml').write_text(text, encoding='utf-8')
+        (tmp_path / '.momayezi.toml').write_text(text, encoding='utf-8')
     return config.load({'CLAUDE_PROJECT_DIR': str(tmp_path), **env})
 
 
@@ -20,7 +20,7 @@ def test_no_settings_and_no_file_is_todays_label_with_pr_comments(tmp_path):
 
 def test_the_default_root_is_the_working_directory(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    (tmp_path / '.momayez.toml').write_text('backend = "gh-dispatch"\n', encoding='utf-8')
+    (tmp_path / '.momayezi.toml').write_text('backend = "gh-dispatch"\n', encoding='utf-8')
     assert config.load({}).backend == 'gh-dispatch'
 
 
@@ -42,10 +42,16 @@ def test_an_unsubstituted_or_empty_setting_is_unset(tmp_path):
 def test_auto_pr_comments_follow_the_backend(tmp_path):
     assert load(tmp_path, MOMAYEZI_REVIEWER_BACKEND='gh-dispatch').pr_comments == 'all'
     got = load(tmp_path, K8S_FILE)
-    assert got == Settings('k8s-job', 'none', K8s(tmp_path / 'ops/momayez-job.yaml', 'momayez'))
+    assert got == Settings('k8s-job', 'none', K8s(tmp_path / 'ops/momayezi-job.yaml', 'momayezi'))
     assert load(tmp_path, K8S_FILE, MOMAYEZI_USER_PR_COMMENTS='all').pr_comments == 'all'
     got = load(tmp_path, MOMAYEZI_REVIEWER_BACKEND='gh-dispatch', MOMAYEZI_USER_PR_COMMENTS='none')
     assert got.pr_comments == 'none'
+
+
+def test_the_pre_rename_repo_file_is_refused_not_ignored(tmp_path):
+    (tmp_path / '.momayez.toml').write_text(K8S_FILE, encoding='utf-8')
+    with pytest.raises(ConfigError, match='renamed .momayezi.toml'):
+        load(tmp_path)
 
 
 def test_a_chosen_gh_backend_leaves_the_repo_file_unread(tmp_path):
@@ -67,7 +73,7 @@ def test_k8s_context_is_optional(tmp_path):
     (None, {'MOMAYEZI_USER_PR_COMMENTS': 'none'}, 'gh-label needs PR comments'),
     ('backend = "k8s-job"\n', {}, 'k8s-job needs [k8s] template and namespace'),
     ('backend = "k8s-job"\nk8s = 3\n', {}, 'k8s-job needs [k8s]'),
-    ('backend = \n', {}, '.momayez.toml:'),
+    ('backend = \n', {}, '.momayezi.toml:'),
 ])
 def test_bad_settings_are_errors(tmp_path, text, env, message):
     with pytest.raises(ConfigError, match=None) as raised:

@@ -84,7 +84,7 @@ def test_review_prints_the_ledger_marker(monkeypatch, tmp_path, capsys):
     assert ledgers.from_marker(capsys.readouterr().out, REVIEWER_MARKER) == sample()
     assert seen == [(REPO, Target(pr=4), HEAD, '{"x": 1}', tmp_path)]
     assert cli.main(['review', '--repo', REPO, '--ref', 'feat', '--head', HEAD]) == 0
-    assert seen[-1][1] == Target(ref='feat') and seen[-1][3] == '' and seen[-1][4].name.startswith('momayez-')
+    assert seen[-1][1] == Target(ref='feat') and seen[-1][3] == '' and seen[-1][4].name.startswith('momayezi-')
 
 
 def test_review_failures_exit_1(monkeypatch, capsys):
@@ -164,7 +164,7 @@ def test_review_out_writes_the_ledger_or_the_failure(monkeypatch, tmp_path, caps
 
 def test_a_label_wait_times_out_on_a_review_no_runner_took(fake, capsys):
     fake.routes[('GET', runs_path())] = {'check_runs': []}
-    fake.routes[('GET', f'repos/{REPO}/actions/workflows/momayez.yaml/runs?head_sha={HEAD}&per_page=5')] = {
+    fake.routes[('GET', f'repos/{REPO}/actions/workflows/momayezi.yaml/runs?head_sha={HEAD}&per_page=5')] = {
         'workflow_runs': [{'status': 'queued', 'created_at': '2026-11-05T11:59:50Z'}]}
     # The label press made the run before the waiter started: --since dates the request.
     assert cli.main(['wait', '4', HEAD, '--since', '2026-11-05T11:59:55Z', '--queue-timeout', '0',

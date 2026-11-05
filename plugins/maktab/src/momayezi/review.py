@@ -1,5 +1,5 @@
 """momayezi-review: one review-only round on a fresh clone of the head, the reviewer end of every
-backend. It prints the ledger as the `momayez-ledger:v2` marker on its last line; a failure is a
+backend. It prints the ledger as the `momayezi-ledger:v2` marker on its last line; a failure is a
 last `momayezi-error:` line instead. With --out, ledger.json or error.json is also written there."""
 
 from __future__ import annotations
@@ -176,15 +176,15 @@ def review(gh: Gh, target: Target, head: str, prior: str, workdir: Path, proc: P
             raise moved(target, head, live, ', a different change')
         notes.append(f'head rebased from {head}; same change')
     # Both files sit inside the checkout: the session reads nothing outside it.
-    meta = workdir / '.momayez'
+    meta = workdir / '.momayezi'
     meta.mkdir(exist_ok=True)
     args = ['--review-only', '--base', base, '--head', live, '--json']
     if prior.strip():
         (meta / 'prior.json').write_text(ledgers.dumps(ledgers.loads(prior)), encoding='utf-8')
-        args += ['--ledger', '.momayez/prior.json']
+        args += ['--ledger', '.momayezi/prior.json']
     if intent:
         (meta / 'intent.md').write_text(intent, encoding='utf-8')
-        args += ['--intent', '.momayez/intent.md']
+        args += ['--intent', '.momayezi/intent.md']
     rules, more = project_memory(proc, str(workdir), tip) if memory else ('', [])
     notes += more
     # --setting-sources user: a project's env and apiKeyHelper run despite managed settings. It

@@ -1,7 +1,7 @@
 # Momayezi
 
 A review ↔ fix loop for Claude Code. The main agent is the editor and owns
-every change; read-only `maktab:momayez` reviewer subagents critique each round, fresh,
+every change; read-only `maktab:momayezi` reviewer subagents critique each round, fresh,
 normally on a model at least as strong as the editor's (a Sonnet editor gets Opus
 reviewers by default). It stops when a round finds nothing critical or major,
 at the round cap, or when progress stalls.
@@ -91,14 +91,14 @@ of the editor's model and the floor; smart drops a Small, plain change to
 | Option | Default | |
 |---|---|---|
 | `momayezi_reviewer_model` | `opus` | Floor (`sonnet`, `opus`, `fable`), or `floor>escalate` such as `sonnet>opus`. |
-| `momayezi_reviewer_effort` | empty | Effort, or `base>escalated` such as `medium>xhigh`; empty: `high`. Claude Code ≥ 2.1.292. |
+| `momayezi_reviewer_effort` | `agent` | Effort, or `base>escalated` such as `medium>xhigh`; `agent`: its own `high`. Claude Code ≥ 2.1.292. |
 | `momayezi_queue_timeout` | empty | Seconds a remote review may sit queued; empty: the whole remote timeout. |
 | `momayezi_limit_wait_max` | `0` | Seconds a remote loop may sleep for a usage limit to reset; 0 stops at once. |
 | `momayezi_size_ignore` | empty | Comma-separated globs smart sizing doesn't count, beside generated files and lock files. |
 | `momayezi_max_rounds` | `3` | Round cap; the capped round reviews at full scope. |
 | `momayezi_max_reviewers` | `2` | Most lenses auto-picked per round, and most reviewers at once. |
 | `momayezi_smart` | `off` | `on` sizes every run like `--smart`; `--no-smart` turns it off per run. |
-| `momayezi_reviewer_backend` | `repo` | `--reviewer remote`'s backend; `repo` reads `.momayez.toml`, else `gh-label`. |
+| `momayezi_reviewer_backend` | `repo` | `--reviewer remote`'s backend; `repo` reads `.momayezi.toml`, else `gh-label`. |
 | `momayezi_pr_comments` | `auto` | `all`, `none` (direct), or `auto` by backend. |
 
 ## Read-only

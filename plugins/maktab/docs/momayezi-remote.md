@@ -5,7 +5,7 @@ repo's rules), calls `request_review` with the ledger and waits up to
 `--remote-timeout` (1200 s), then merges the result by id and replies to each
 `wont-fix` and `disputed`. Two timeouts stop it.
 
-The plugin's `momayez` MCP server (stdlib Python, `gh`, and `kubectl` for
+The plugin's `momayezi` MCP server (stdlib Python, `gh`, and `kubectl` for
 k8s-job) has `request_review`, `review_status` and `reply_to_finding`.
 `request_review` takes a full editor ledger, or a lean one: `target`,
 `round`, and per finding `id`, `state`, `at`, `claim`, `reason`. A lean one is
@@ -17,12 +17,12 @@ a dispatch or create retries only when the request never left.
 
 The backend decides what starts a round. It comes from
 `$MOMAYEZI_REVIEWER_BACKEND`, then `momayezi_reviewer_backend`, then
-`backend` in the repo's `.momayez.toml`, then `gh-label`.
+`backend` in the repo's `.momayezi.toml`, then `gh-label`.
 
 | Backend | Starts the round by | Ledger comes back from | The repo needs |
 |---|---|---|---|
-| `gh-label` | the `review` label (a branch: a dispatch with `ref`, `ledger`) | the `momayez` check run | `momayez.yaml` and `momayez-post.yaml` |
-| `gh-dispatch` | a `momayez.yaml` dispatch with `pr` or `ref`, `head`, `ledger`, `post` | the check run, or with `post=false` the run's `momayez-ledger` artifact | those inputs, and `run-name: momayez <pr/N or ref>@<head>` |
+| `gh-label` | the `review` label (a branch: a dispatch with `ref`, `ledger`) | the `momayezi` check run | `momayezi.yaml` and `momayezi-post.yaml` |
+| `gh-dispatch` | a `momayezi.yaml` dispatch with `pr` or `ref`, `head`, `ledger`, `post` | the check run, or with `post=false` the run's `momayezi-ledger` artifact | those inputs, and `run-name: momayezi <pr/N or ref>@<head>` |
 | `k8s-job` | a Job from the repo's template, made with the caller's `kubectl` | the last ledger marker in the Job's pod log | a namespace, the template, an image running `momayezi-review`, RBAC below |
 
 A repo avoids `gh-label` when any label fires its CI, as nameless's
@@ -42,22 +42,30 @@ post the PR review with its own `gh` token, and no check run. `routine`
 (a claude.ai routine) waits until a run's result can be read back.
 
 ```toml
-# .momayez.toml
+# .momayezi.toml
 backend = "k8s-job"
 [k8s]
-template = "ops/momayez-job.yaml"  # placeholders: ${name} ${namespace} ${repo}
-namespace = "momayez"              #   ${target_flag} ${target} ${head} ${ledger_configmap}; $$ is a literal $
+template = "ops/momayezi-job.yaml"  # placeholders: ${name} ${namespace} ${repo}
+namespace = "momayezi"              #   ${target_flag} ${target} ${head} ${ledger_configmap}; $$ is a literal $
 context = "staging"                # optional kubectl context
 ```
 
-`.momayez.toml` is trusted like the repo's code: it can point `kubectl` at a
+2.5.0 renamed every repo-hosted name from `momayez*` (table above;
+constants in [momayezi-protocol.md](momayezi-protocol.md)): rename
+`momayez.yaml`, `momayez-post.yaml`, their `run-name`, the `momayez-ledger`
+artifact in the upload step, the check name in branch protection, and
+`.momayez.toml`, which is refused whenever momayezi would read it. A k8s
+template carries over unchanged. Pin 2.5.0 on both ends (the CI scripts and
+the image): older ones post under the old names, so a round just times out.
+
+`.momayezi.toml` is trusted like the repo's code: it can point `kubectl` at a
 context and a template. Setting the backend in the env or
 `momayezi_reviewer_backend` to a gh-* one leaves the file unread; k8s-job
 always takes `[k8s]` from it.
 
 **k8s-job** works as follows:
-- The Job is named `momayez-pr<N>-<head7>-r<round>`, or for a branch
-  `momayez-<ref, lowercased, other characters as ->-…`, cut to 63 characters. A repeat request
+- The Job is named `momayezi-pr<N>-<head7>-r<round>`, or for a branch
+  `momayezi-<ref, lowercased, other characters as ->-…`, cut to 63 characters. A repeat request
   reuses a live or finished Job; a failed one is replaced.
 - The ConfigMap `<name>-ledger` holds the editor ledger under `ledger.json`
   and is owned by the Job, so `ttlSecondsAfterFinished` removes both.

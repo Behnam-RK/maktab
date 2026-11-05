@@ -9,15 +9,16 @@ Constants in [protocol.py](../src/momayezi/protocol.py):
 
 | What | Value |
 |---|---|
-| Check run | `momayez`, conclusion `neutral`, ledger in `output.text` |
+| Check run | `momayezi`, conclusion `neutral`, ledger in `output.text` |
 | Press label | `review`, removed then re-added on each request |
-| Workflow | `momayez.yaml`, inputs `ref`, `ledger`; gh-dispatch adds `pr`, `head`, `post` |
-| Artifact | `momayez-ledger`, holding `ledger.json` or `error.json` |
+| Workflow | `momayezi.yaml`, inputs `ref`, `ledger`; gh-dispatch adds `pr`, `head`, `post` |
+| Artifact | `momayezi-ledger`, holding `ledger.json` or `error.json` |
 | Failure | `momayezi-error: {json}`: the last such line in a pod log (stdout's last line), or `<!-- … -->` in a failed check run |
-| k8s | label `momayez.maktab/head`, annotation `momayez.maktab/target` |
-| Markers | `<!-- momayez-ledger:v2 <json> -->`, editor comment `<!-- momayezi-editor-ledger:v2 <json> -->` |
+| k8s | label `momayezi.maktab/head`, annotation `momayezi.maktab/target` |
+| Markers | `<!-- momayezi-ledger:v2 <json> -->`, editor comment `<!-- momayezi-editor-ledger:v2 <json> -->` |
 | Size cap | 65,535 bytes; drops nits, then minor evidence, minor findings, all evidence; `truncated`, `last_id` |
 | Version | `v2` since 2.3.0; `v1` is not read (open loops restart). One pin for both ends. |
+| Rename | 2.5.0 renamed every `momayez*` name above to `momayezi*`; older reviewer ledgers are not read |
 
 ## CI scripts
 
@@ -44,7 +45,7 @@ token, to create check runs) and `GITHUB_REPOSITORY`:
     and exits 1. `status` is `limited` for a usage limit, `resets_at` when
     the message names a time.
   - `--out` also writes `ledger.json`, or `error.json`: upload the directory
-    as the `momayez-ledger` artifact `if: always()`.
+    as the `momayezi-ledger` artifact `if: always()`.
 - `momayezi-post <pr|ref> --error error.json --head <sha>`: posts a failure as
   a `failure` check run, for gh-label to read back.
 - `momayezi-prior` in a dispatched run reads its `ledger` input, PR or branch.

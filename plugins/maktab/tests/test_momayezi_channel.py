@@ -52,7 +52,7 @@ def test_initialize_declares_the_channel_and_pins_an_old_protocol():
     first, second = (m['result'] for m in out.messages())
     assert first['protocolVersion'] == '2025-03-26' and second['protocolVersion'] == '2025-06-18'
     assert first['capabilities'] == {'experimental': {'claude/channel': {}}, 'tools': {}}
-    assert 'plugin:maktab:momayez' in first['instructions']
+    assert 'plugin:maktab:momayezi' in first['instructions']
 
 
 def test_ping_list_unknown_and_garbage():
@@ -100,7 +100,7 @@ def test_request_review_on_a_branch_dispatches_the_workflow(no_thread):
     got, error = call(srv, out, 'request_review', {'ref': 'feat', 'ledger': ledgers.dumps(sample())})
     assert not error and got['wait'] == f'momayezi-wait feat {HEAD} --since 2026-11-05T12:00:00Z'
     argv = runner.calls[-1][2]
-    assert argv[:5] == ['workflow', 'run', 'momayez.yaml', '--repo', REPO]
+    assert argv[:5] == ['workflow', 'run', 'momayezi.yaml', '--repo', REPO]
     assert argv[6] == 'ref=feat' and ledgers.loads(argv[8].removeprefix('ledger=')) == sample()
 
 

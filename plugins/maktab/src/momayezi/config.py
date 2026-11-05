@@ -1,7 +1,7 @@
 """Which reviewer backend runs a remote review, and whether momayezi writes to the PR.
 
 The backend: $MOMAYEZI_REVIEWER_BACKEND, then the user's `momayezi_reviewer_backend` setting
-(unless `repo`), then `.momayez.toml`'s `backend`, then gh-label. PR writes come from the
+(unless `repo`), then `.momayezi.toml`'s `backend`, then gh-label. PR writes come from the
 user's `momayezi_pr_comments` setting. The MCP server sees the two settings as
 MOMAYEZI_USER_* (plugin.json maps them), apart from the shell override.
 """
@@ -14,7 +14,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from .protocol import BACKENDS, CONFIG_FILE, PR_COMMENTS
+from .protocol import BACKENDS, CONFIG_FILE, OLD_CONFIG_FILE, PR_COMMENTS
 
 
 class ConfigError(ValueError):
@@ -44,6 +44,9 @@ def _set(value: str | None) -> str:
 def _file(root: Path) -> dict:
     path = root / CONFIG_FILE
     if not path.is_file():
+        # Silently falling back to gh-label would press a label that may fire the repo's CI.
+        if (root / OLD_CONFIG_FILE).is_file():
+            raise ConfigError(f'{OLD_CONFIG_FILE} was renamed {CONFIG_FILE} in maktab 2.5.0: rename it')
         return {}
     try:
         return tomllib.loads(path.read_text(encoding='utf-8'))

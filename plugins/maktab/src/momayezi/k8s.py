@@ -1,5 +1,5 @@
 """k8s-job: the review runs as a Kubernetes Job made from the repo's template; the ledger is the
-last `momayez-ledger:v2` marker in its pod's log. Every cluster call goes through `Kubectl`."""
+last `momayezi-ledger:v2` marker in its pod's log. Every cluster call goes through `Kubectl`."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from .protocol import (CONFIGMAP_CAP, EDITOR_MARKER, K8S_HEAD_LABEL, K8S_TARGET_
                        LEDGER_KEY, REVIEWER_MARKER)
 
 Runner = Callable[[list[str], str | None], str]
-# A branch name safe to put in a template unquoted; the same rule momayez-post applies.
+# A branch name safe to put in a template unquoted; the same rule momayezi-post applies.
 SAFE_REF = re.compile(r'^[A-Za-z0-9._][A-Za-z0-9._/-]*$')
 NAME_MAX = 63
 
@@ -82,11 +82,11 @@ class Kubectl:
 
 
 def job_name(target: Target, head: str, round_: int) -> str:
-    """momayez-<pr|ref>-<head7>-r<round>: a DNS label, so the same request maps to the same Job."""
+    """momayezi-<pr|ref>-<head7>-r<round>: a DNS label, so the same request maps to the same Job."""
     tail = f'-{head[:7]}-r{round_}'
     who = f'pr{target.pr}' if target.pr else re.sub(r'[^a-z0-9]+', '-', str(target.ref).lower())
-    who = who[:NAME_MAX - len('momayez-') - len(tail)].strip('-') or 'ref'
-    return f'momayez-{who}{tail}'
+    who = who[:NAME_MAX - len('momayezi-') - len(tail)].strip('-') or 'ref'
+    return f'momayezi-{who}{tail}'
 
 
 def state(job: dict[str, Any]) -> tuple[str, str]:

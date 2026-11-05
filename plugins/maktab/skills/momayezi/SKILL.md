@@ -7,7 +7,7 @@ argument-hint: "[target] [--lenses a,b] [--model m] [--max-rounds n] [--max-revi
 # Momayezi — review ↔ fix loop
 
 You are the **editor**: you own every change and the ledger. Reviewers are
-`maktab:momayez` subagents: read-only, fresh each round, and they return
+`maktab:momayezi` subagents: read-only, fresh each round, and they return
 findings in the format their definition fixes. Rounds run without stopping for
 the user, who hears from you at the announcement, if no gate is found, and at
 the end.
@@ -16,7 +16,7 @@ Arguments: `$ARGUMENTS`
 
 **Modes.** `--review-only` (one CI round, no edits): follow
 [references/review-only.md](references/review-only.md) instead.
-`--reviewer remote` (the remote momayez reviewer reviews): read
+`--reviewer remote` (the remote momayezi reviewer reviews): read
 [references/remote.md](references/remote.md) before Setup.
 
 ## Setup
@@ -36,7 +36,7 @@ Arguments: `$ARGUMENTS`
 5. **Model and effort.** `sonnet < opus < fable`: stronger of yours and
    the floor `${user_config.momayezi_reviewer_model}` (`opus` if unset:
    blank or unsubstituted). Effort: `${user_config.momayezi_reviewer_effort}`,
-   none if unset. A pair is its base unless smart escalates (smart.md);
+   none if `agent` or unset. A pair is its base unless smart escalates (smart.md);
    `--model` wins. Pass both on each reviewer and verifier spawn.
 6. **Cap.** `--max-rounds`, else `${user_config.momayezi_max_rounds}` (3 if blank or
    unsubstituted).
@@ -69,8 +69,7 @@ Reviewer: local | remote (commits and pushes each round to <branch>)
    the next ledger id (`F1`, `F2`, …).
 3. **Verify** (`--verify` only): one more reviewer, given the surviving
    findings by ledger id, answers each `confirmed` or `refuted` with a line
-   of evidence (`momayez`, Verify mode). Drop
-   refuted ones.
+   of evidence (Verify mode). Drop refuted ones.
 4. **Decide each finding yourself.** Open the cited line. Real and ≥minor: fix
    it, smallest change, with a test where the project has a test harness and
    the defect is testable. Wrong: mark `wont-fix` with the evidence (the line,

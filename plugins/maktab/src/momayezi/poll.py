@@ -1,4 +1,4 @@
-"""Waiting for a momayez review: one poll, and the loop the waiter and the channel share."""
+"""Waiting for a momayezi review: one poll, and the loop the waiter and the channel share."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def known(gh: Gh, head: str) -> set[int]:
 
 
 def check(gh: Gh, target: Target, head: str, seen: set[int], since: str = '') -> Result:
-    """The review of `head` posted as a new `momayez` check run, else a pending result: running
+    """The review of `head` posted as a new `momayezi` check run, else a pending result: running
     once a new check run is in progress, else the phase of the workflow run on `head`."""
     opened = None
     for run in gh.runs(head):

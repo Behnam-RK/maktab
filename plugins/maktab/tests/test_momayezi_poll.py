@@ -7,7 +7,7 @@ from momayezi.backend import GhLabel
 from momayezi.github import GhError, Target
 
 PR = Target(pr=4)
-FLOWS = f'repos/o/r/actions/workflows/momayez.yaml/runs?head_sha={HEAD}&per_page=5'
+FLOWS = f'repos/o/r/actions/workflows/momayezi.yaml/runs?head_sha={HEAD}&per_page=5'
 
 
 def test_known_snapshots_existing_runs():

@@ -12,7 +12,7 @@ from .protocol import EDITOR_MARKER, EDITOR_RESET
 
 
 def from_pr(gh: Gh, pr: int) -> ledgers.Ledger | None:
-    """The last `momayez` run on the PR's commits, or the editor's sticky ledger if newer;
+    """The last `momayezi` run on the PR's commits, or the editor's sticky ledger if newer;
     a newer reset (a new loop's round 1) means no prior at all."""
     best, when = None, ''
     commits = gh.api(f'repos/{{repo}}/pulls/{pr}/commits?per_page=100', pages=True)

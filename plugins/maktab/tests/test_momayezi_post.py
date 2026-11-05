@@ -51,9 +51,9 @@ def test_check_run_is_created_with_the_marker():
     client, runner = gh({('GET', runs_path()): {'check_runs': [run(1, sample())]}})
     post.check_run(client, sample())
     (body,) = runner.sent('POST', CHECKS)
-    assert body['name'] == 'momayez' and body['head_sha'] == HEAD and body['conclusion'] == 'neutral'
+    assert body['name'] == 'momayezi' and body['head_sha'] == HEAD and body['conclusion'] == 'neutral'
     assert ledgers.from_marker(body['output']['text'], REVIEWER_MARKER) == sample()
-    assert body['output']['title'] == 'momayez: findings'
+    assert body['output']['title'] == 'momayezi: findings'
 
 
 def test_an_in_progress_run_is_completed_in_place():
@@ -66,7 +66,7 @@ def test_an_in_progress_run_is_completed_in_place():
 def test_inline_comments_carry_the_finding_marker_and_ranges():
     f1, f2, _ = sample()['findings']
     one = post.inline(f1)
-    assert one['line'] == 2 and 'start_line' not in one and one['body'].endswith('<!-- momayez-finding:F1 -->')
+    assert one['line'] == 2 and 'start_line' not in one and one['body'].endswith('<!-- momayezi-finding:F1 -->')
     span = post.inline(f2)
     assert (span['start_line'], span['line'], span['start_side']) == (5, 7, 'RIGHT')
 

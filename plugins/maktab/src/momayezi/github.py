@@ -103,7 +103,7 @@ class Gh:
         return self.api(f'repos/{{repo}}/commits/{target.ref}')['sha']
 
     def runs(self, sha: str) -> list[dict[str, Any]]:
-        """The `momayez` check runs on `sha`, newest first."""
+        """The `momayezi` check runs on `sha`, newest first."""
         data = self.api(f'repos/{{repo}}/commits/{sha}/check-runs?check_name={CHECK_RUN}&per_page=100')
         return sorted(data['check_runs'], key=lambda r: r['id'], reverse=True)
 
@@ -119,7 +119,7 @@ class Gh:
         return sorted(self.api(path)['workflow_runs'], key=lambda r: r['id'], reverse=True)
 
     def artifact_file(self, run_id: int, name: str) -> str | None:
-        """A file the run left in its momayez-ledger artifact; None when it left none."""
+        """A file the run left in its momayezi-ledger artifact; None when it left none."""
         listed = self.api(f'repos/{{repo}}/actions/runs/{run_id}/artifacts') or {}
         names = {a['name'] for a in listed.get('artifacts') or []}
         if ARTIFACT not in names:
@@ -133,7 +133,7 @@ class Gh:
                 return handle.read()
 
     def artifact_ledger(self, run_id: int) -> ledgers.Ledger | None:
-        """The ledger a run left in its momayez-ledger artifact; None when it left none."""
+        """The ledger a run left in its momayezi-ledger artifact; None when it left none."""
         text = self.artifact_file(run_id, LEDGER_KEY)
         return None if text is None else ledgers.loads(text)
 
@@ -182,7 +182,7 @@ class Gh:
             newest = max(threads, key=lambda c: c['id'])
             self.api(f'repos/{{repo}}/pulls/{pr}/comments/{newest["id"]}/replies', 'POST', {'body': text})
             return 'thread'
-        self.api(f'repos/{{repo}}/issues/{pr}/comments', 'POST', {'body': f'**Re {finding}** (momayez): {text}'})
+        self.api(f'repos/{{repo}}/issues/{pr}/comments', 'POST', {'body': f'**Re {finding}** (momayezi): {text}'})
         return 'summary'
 
 

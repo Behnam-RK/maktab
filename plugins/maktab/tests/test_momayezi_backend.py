@@ -15,10 +15,10 @@ from momayezi.github import Gh, GhError, Target
 from momayezi.k8s import K8sJob
 
 PR = Target(pr=4)
-DISPATCH = f'repos/{REPO}/actions/workflows/momayez.yaml/dispatches'
+DISPATCH = f'repos/{REPO}/actions/workflows/momayezi.yaml/dispatches'
 RUN = f'repos/{REPO}/actions/runs/7'
 ARTIFACTS = f'repos/{REPO}/actions/runs/7/artifacts'
-LISTED = f'repos/{REPO}/actions/workflows/momayez.yaml/runs?event=workflow_dispatch&per_page=50'
+LISTED = f'repos/{REPO}/actions/workflows/momayezi.yaml/runs?event=workflow_dispatch&per_page=50'
 
 
 class Downloads(FakeRunner):
@@ -85,7 +85,7 @@ def test_check_waits_for_the_run_then_reads_its_artifact():
                                                  'run_started_at': '2026-11-05T11:59:30Z'},
                                                 {'id': 7, 'status': 'completed', 'conclusion': 'success',
                                                  'html_url': 'u'}],
-                                 ('GET', ARTIFACTS): {'artifacts': [{'name': 'momayez-ledger'}]}},
+                                 ('GET', ARTIFACTS): {'artifacts': [{'name': 'momayezi-ledger'}]}},
                                 files={'ledger.json': ledgers.dumps(sample()), 'target': '4\n'})
     backend_ = GhDispatch(client, post=False)
     base = {'pr': '4', 'head_sha': HEAD, 'status': 'pending'}
@@ -103,7 +103,7 @@ def test_check_failures_carry_a_reason():
     runner.routes[('GET', RUN)] = done
     runner.routes[('GET', ARTIFACTS)] = {'artifacts': [{'name': 'other'}]}
     assert GhDispatch(client).check(handle())['reason'] == 'the review run left no ledger'
-    runner.routes[('GET', ARTIFACTS)] = {'artifacts': [{'name': 'momayez-ledger'}]}
+    runner.routes[('GET', ARTIFACTS)] = {'artifacts': [{'name': 'momayezi-ledger'}]}
     assert GhDispatch(client).check(handle())['reason'] == 'the review run left no ledger'  # empty artifact
     other = dict(sample(), target=dict(sample()['target'], head_sha='c' * 40))
     runner.files = {'ledger.json': ledgers.dumps(other)}
@@ -120,18 +120,18 @@ def test_with_post_the_ledger_comes_from_the_check_run():
 
 
 def test_status_finds_the_run_by_its_name():
-    title = f'momayez pr/4@{HEAD}'
+    title = f'momayezi pr/4@{HEAD}'
     client, runner = dispatch_client({('GET', LISTED): {'workflow_runs': []}})
     direct = GhDispatch(client, post=False)
     assert direct.status(PR, HEAD) == {'status': 'none', 'pr': '4', 'head_sha': HEAD}
     runner.routes[('GET', LISTED)] = {'workflow_runs': [{'id': 7, 'display_title': title},
-                                                        {'id': 5, 'display_title': 'momayez other'}]}
+                                                        {'id': 5, 'display_title': 'momayezi other'}]}
     runner.routes[('GET', RUN)] = [{'id': 7, 'status': 'queued'},
                                    {'id': 7, 'status': 'completed', 'conclusion': 'cancelled', 'html_url': 'u'}]
     assert direct.status(PR, HEAD)['status'] == 'pending'
     assert direct.status(PR, HEAD) == {'status': 'done', 'pr': '4', 'head_sha': HEAD, 'url': 'u', 'failed': True,
                                        'reason': 'the review run ended cancelled', 'conclusion': 'cancelled'}
-    runner.routes[('GET', LISTED)] = {'workflow_runs': [{'id': 7, 'display_title': 'momayez feat@' + HEAD}]}
+    runner.routes[('GET', LISTED)] = {'workflow_runs': [{'id': 7, 'display_title': 'momayezi feat@' + HEAD}]}
     assert direct.status(Target(ref='feat'), HEAD)['status'] == 'done'
 
 
@@ -173,7 +173,7 @@ def test_wait_hints():
 def test_a_failed_run_says_why_from_its_error_file():
     failed = {'id': 7, 'status': 'completed', 'conclusion': 'failure'}
     told = '{"reason":"hit your limit","resets_at":"2026-11-05T15:00:00Z","status":"limited"}'
-    client, runner = dispatch_client({('GET', RUN): failed, ('GET', ARTIFACTS): {'artifacts': [{'name': 'momayez-ledger'}]}},
+    client, runner = dispatch_client({('GET', RUN): failed, ('GET', ARTIFACTS): {'artifacts': [{'name': 'momayezi-ledger'}]}},
                                      files={'error.json': told})
     got = GhDispatch(client, post=False).check(handle())
     assert got['status'] == 'limited' and got['reason'] == 'hit your limit' and got['conclusion'] == 'failure'
@@ -185,6 +185,6 @@ def test_a_failed_run_says_why_from_its_error_file():
 def test_a_rebased_artifact_ledger_is_accepted():
     moved = dict(sample(), target=dict(sample()['target'], head_sha='d' * 40, rebased_from=HEAD))
     client, _ = dispatch_client({('GET', RUN): {'id': 7, 'status': 'completed', 'conclusion': 'success'},
-                                 ('GET', ARTIFACTS): {'artifacts': [{'name': 'momayez-ledger'}]}},
+                                 ('GET', ARTIFACTS): {'artifacts': [{'name': 'momayezi-ledger'}]}},
                                 files={'ledger.json': ledgers.dumps(moved)})
     assert GhDispatch(client, post=False).check(handle())['status'] == 'done'

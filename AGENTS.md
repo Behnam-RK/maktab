@@ -8,8 +8,8 @@ plugin under `plugins/`:
   `patches/<name>.sh`. Never edit them in place; the next sync overwrites
   it. Change the patch script, then run `scripts/sync.sh <name>`.
 - **Own** (`maktab`): edited here. One plugin, so every tool shares the
-  `maktab:` namespace: `tahrir`, `momayezi`, `tarahi` (skills) and `momayez`
-  (momayezi's reviewer agent). `plugins/maktab/README.md` indexes them;
+  `maktab:` namespace: `tahrir`, `momayezi`, `tarahi` (skills) and the
+  `momayezi` reviewer agent (same name as its skill). `plugins/maktab/README.md` indexes them;
   `docs/<tool>.md` is each tool's user doc; `skills/<tool>/SKILL.md` is what
   the agent reads. Settings in `plugin.json` are prefixed by tool.
 

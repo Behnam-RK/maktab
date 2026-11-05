@@ -1,15 +1,15 @@
-"""Every constant both ends of the momayez wire share. nameless hosts the other end; change these here only."""
+"""Every constant both ends of the momayezi wire share. nameless hosts the other end; change these here only."""
 
-CHECK_RUN = 'momayez'
+CHECK_RUN = 'momayezi'
 LABEL = 'review'
-WORKFLOW = 'momayez.yaml'
+WORKFLOW = 'momayezi.yaml'
 WORKFLOW_INPUTS = ('ref', 'ledger')
 
-REVIEWER_MARKER = 'momayez-ledger:v2'
+REVIEWER_MARKER = 'momayezi-ledger:v2'
 EDITOR_MARKER = 'momayezi-editor-ledger:v2'
 # A new loop's round 1: the PR's review history is not its prior.
 EDITOR_RESET = f'<!-- {EDITOR_MARKER} null -->'
-FINDING_MARKER = 'momayez-finding:'
+FINDING_MARKER = 'momayezi-finding:'
 # A review that left no ledger says why: `<!-- momayezi-error: {json} -->` in a check run's text,
 # the same line (unwrapped) last on stdout, so the last such line in a pod log, or ERROR_FILE beside ledger.json in the artifact.
 ERROR_MARKER = 'momayezi-error:'
@@ -33,18 +33,19 @@ PENDING_TTL = 3600.0
 
 BACKENDS = ('gh-label', 'gh-dispatch', 'k8s-job')
 PR_COMMENTS = ('auto', 'all', 'none')
-CONFIG_FILE = '.momayez.toml'
+CONFIG_FILE = '.momayezi.toml'
+OLD_CONFIG_FILE = '.momayez.toml'  # its name before 2.5.0: refused, never read
 
-# gh-dispatch: momayez.yaml takes these inputs, names its run RUN_NAME, and leaves the ledger
-# (`ledger.json`) in the ARTIFACT artifact; `post: false` skips momayez-post.
+# gh-dispatch: momayezi.yaml takes these inputs, names its run RUN_NAME, and leaves the ledger
+# (`ledger.json`) in the ARTIFACT artifact; `post: false` skips momayezi-post.
 DISPATCH_INPUTS = ('pr', 'ref', 'head', 'ledger', 'post')
-RUN_NAME = 'momayez {target}@{head}'
-ARTIFACT = 'momayez-ledger'
+RUN_NAME = 'momayezi {target}@{head}'
+ARTIFACT = 'momayezi-ledger'
 
 # k8s-job: the Job template's placeholders, the labels the plugin sets, and the ConfigMap the
 # runner reads its prior ledger from (well under the 1 MiB ConfigMap limit).
 PLACEHOLDERS = ('name', 'namespace', 'repo', 'target_flag', 'target', 'head', 'ledger_configmap')
-K8S_HEAD_LABEL = 'momayez.maktab/head'
-K8S_TARGET_ANNOTATION = 'momayez.maktab/target'
+K8S_HEAD_LABEL = 'momayezi.maktab/head'
+K8S_TARGET_ANNOTATION = 'momayezi.maktab/target'
 LEDGER_KEY = 'ledger.json'
 CONFIGMAP_CAP = 900000

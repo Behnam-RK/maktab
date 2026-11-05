@@ -35,7 +35,7 @@ def _parser() -> argparse.ArgumentParser:
     target.add_argument('--repo', help='owner/name (default: $GITHUB_REPOSITORY, else the current repo)')
 
     post_ = sub.add_parser('post', parents=[target],
-                           help='post the ledger on stdin as the momayez check run and a PR review')
+                           help='post the ledger on stdin as the momayezi check run and a PR review')
     post_.add_argument('--error', type=Path, help="instead, post this error.json as a failed check run on --head")
     post_.add_argument('--head', help='the commit the failed review was for (with --error)')
     sub.add_parser('prior', parents=[target], help='print the newest prior ledger, or nothing')
@@ -76,7 +76,7 @@ def _review(args: argparse.Namespace) -> str:
     target = Target(pr=args.pr) if args.pr else Target(ref=args.ref)
     try:
         text = args.ledger_file.read_text(encoding='utf-8') if args.ledger_file else ''
-        workdir = args.workdir or Path(tempfile.mkdtemp(prefix='momayez-'))
+        workdir = args.workdir or Path(tempfile.mkdtemp(prefix='momayezi-'))
         found = review.review(Gh(args.repo), target, args.head, text, workdir,
                               follow_rebase=args.follow_rebase, memory=args.memory)
     except (GhError, ledgers.LedgerError, review.ReviewError, ValueError, OSError) as exc:

@@ -1,4 +1,4 @@
-"""The momayez channel: an MCP stdio server that requests remote reviews and pushes them back.
+"""The momayezi channel: an MCP stdio server that requests remote reviews and pushes them back.
 
 Tools work in any session. The push (`notifications/claude/channel`) reaches Claude only when
 the session opted the plugin in with `--channels`; the skill's waiter covers the rest.
@@ -22,7 +22,7 @@ from .protocol import CAP, EDITOR_MARKER, EDITOR_RESET, PENDING_TTL
 
 PROTOCOLS = ('2024-11-05', '2025-03-26', '2025-06-18')
 INSTRUCTIONS = (
-    'momayez reviews arrive as <channel source="plugin:maktab:momayez" pr|ref="..." head_sha="..." '
+    'momayezi reviews arrive as <channel source="plugin:maktab:momayezi" pr|ref="..." head_sha="..." '
     'verdict="...">, the body being the reviewer ledger JSON (or the failure). Hand it to the running '
     'maktab:momayezi loop, which merges it by finding id; ignore a second event for the same head_sha.'
 )
@@ -33,7 +33,7 @@ TARGET = {
 TOOLS = [
     {
         'name': 'request_review',
-        'description': 'Ask the remote momayez reviewer to review the pushed head of a PR or branch, '
+        'description': 'Ask the remote momayezi reviewer to review the pushed head of a PR or branch, '
                        'through the configured backend. Attach the editor ledger (omit it in round 1) so '
                        'wont-fix and disputed reasons carry over. Returns the head and the `momayezi-wait` '
                        'command to run as the waiter.',
@@ -48,7 +48,7 @@ TOOLS = [
     },
     {
         'name': 'reply_to_finding',
-        'description': 'Reply to a momayez finding on its inline thread, or on the PR when it was outside '
+        'description': 'Reply to a momayezi finding on its inline thread, or on the PR when it was outside '
                        'the diff. Skipped when momayezi_pr_comments resolves to none.',
         'inputSchema': {'type': 'object', 'required': ['pr', 'id', 'text'],
                         'properties': {'pr': TARGET['pr'], 'id': {'type': 'string', 'pattern': '^F[1-9][0-9]*$'},
@@ -110,7 +110,7 @@ class Server:
             result = {
                 'protocolVersion': asked if asked in PROTOCOLS else PROTOCOLS[-1],
                 'capabilities': {'experimental': {'claude/channel': {}}, 'tools': {}},
-                'serverInfo': {'name': 'momayez', 'version': '1'},
+                'serverInfo': {'name': 'momayezi', 'version': '1'},
                 'instructions': INSTRUCTIONS,
             }
         elif method == 'ping':

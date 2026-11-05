@@ -53,10 +53,10 @@ def test_a_pr_review_clones_the_head_and_returns_the_placed_ledger(tmp_path):
     assert claude['cwd'] == tmp_path and claude['check'] is False and claude['env'] == {'HOME': '/h'}
     prompt = claude['argv'][2]
     assert prompt == (f'/maktab:momayezi --review-only --base {BASE} --head {HEAD} --json '
-                      '--ledger .momayez/prior.json --intent .momayez/intent.md')
+                      '--ledger .momayezi/prior.json --intent .momayezi/intent.md')
     assert json.loads(claude['argv'][-1]) == ledgers.schema()
-    assert ledgers.loads((tmp_path / '.momayez/prior.json').read_text()) == sample()
-    assert (tmp_path / '.momayez/intent.md').read_text() == '# Fix it\n\n\n'
+    assert ledgers.loads((tmp_path / '.momayezi/prior.json').read_text()) == sample()
+    assert (tmp_path / '.momayezi/intent.md').read_text() == '# Fix it\n\n\n'
 
 
 def test_a_branch_review_diffs_against_the_default_branch(tmp_path, monkeypatch):

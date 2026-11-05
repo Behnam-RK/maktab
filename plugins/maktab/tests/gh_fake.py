@@ -50,7 +50,7 @@ def gh(routes: dict[tuple[str, str], Any] | None = None) -> tuple[Gh, FakeRunner
 
 
 def runs_path(sha: str = HEAD) -> str:
-    return f'repos/{REPO}/commits/{sha}/check-runs?check_name=momayez&per_page=100'
+    return f'repos/{REPO}/commits/{sha}/check-runs?check_name=momayezi&per_page=100'
 
 
 def run(ident: int, ledger: dict[str, Any] | None = None, status: str = 'completed',

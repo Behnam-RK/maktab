@@ -1,7 +1,7 @@
 # Remote reviewer
 
 `--reviewer remote [--remote-timeout <s>]`: each round's review comes from
-the remote momayez reviewer, which runs [review-only mode](review-only.md) on
+the remote momayezi reviewer, which runs [review-only mode](review-only.md) on
 the pushed head through the configured backend. Setup, the ledger, decisions, the gate and the stop rules
 stay as in SKILL.md. Only how a round gets its findings changes.
 
@@ -17,9 +17,9 @@ stay as in SKILL.md. Only how a round gets its findings changes.
 - **Lenses and model**: the remote run picks them by the same rules, with
   the runner's own model, effort and size-ignore settings, which you can't
   see. Announce the lenses only; the model comes back in the ledger.
-- **Tools**: the `momayez` MCP server's `request_review`, `review_status` and
+- **Tools**: the `momayezi` MCP server's `request_review`, `review_status` and
   `reply_to_finding`. If they are missing, the server failed to start: say so
-  and stop. A tool error about the backend or `.momayez.toml` is a setup
+  and stop. A tool error about the backend or `.momayezi.toml` is a setup
   problem: report it and stop.
 - **Backend**: `request_review` starts the round through the configured one
   (`gh-label`, `gh-dispatch` or `k8s-job`) and says which. Announce it.
@@ -39,7 +39,7 @@ stay as in SKILL.md. Only how a round gets its findings changes.
 3. **Wait**: run that command with Bash `run_in_background`, adding
    `--timeout <remote-timeout>` (default 1200) and, when
    `${user_config.momayezi_queue_timeout}` is set, `--queue-timeout` with
-   it. Go on with whichever arrives first: the waiter's line, or a `<channel source="plugin:maktab:momayez">`
+   it. Go on with whichever arrives first: the waiter's line, or a `<channel source="plugin:maktab:momayezi">`
    event for the same `head_sha`. Ignore the other, and stop the waiter if it
    is still running.
 4. **Timeout or failure**: if the status is `timeout` or `failed`, request

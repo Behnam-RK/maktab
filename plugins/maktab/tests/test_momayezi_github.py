@@ -77,24 +77,24 @@ def test_press_removes_then_adds_and_tolerates_an_absent_label():
 
 def test_dispatch_passes_each_input_as_a_field():
     client, runner = gh()
-    client.dispatch('momayez.yaml', {'ref': 'b', 'ledger': '{}'})
-    assert runner.calls[0][2] == ['workflow', 'run', 'momayez.yaml', '--repo', REPO, '-f', 'ref=b', '-f', 'ledger={}']
+    client.dispatch('momayezi.yaml', {'ref': 'b', 'ledger': '{}'})
+    assert runner.calls[0][2] == ['workflow', 'run', 'momayezi.yaml', '--repo', REPO, '-f', 'ref=b', '-f', 'ledger={}']
 
 
 def test_reply_on_the_newest_thread_or_the_pr():
     path = f'repos/{REPO}/pulls/4/comments?per_page=100'
-    tagged = [{'id': 5, 'body': 'a <!-- momayez-finding:F2 -->'}, {'id': 8, 'body': 'b <!-- momayez-finding:F2 -->'},
-              {'id': 9, 'body': 'c <!-- momayez-finding:F21 -->'}]
+    tagged = [{'id': 5, 'body': 'a <!-- momayezi-finding:F2 -->'}, {'id': 8, 'body': 'b <!-- momayezi-finding:F2 -->'},
+              {'id': 9, 'body': 'c <!-- momayezi-finding:F21 -->'}]
     client, runner = gh({('GET', path): [[tagged]]})
     assert client.reply(4, 'F2', 'because') == 'thread'
     assert runner.sent('POST', f'repos/{REPO}/pulls/4/comments/8/replies') == [{'body': 'because'}]
     assert client.reply(4, 'F7', 'because') == 'summary'
-    assert runner.sent('POST', f'repos/{REPO}/issues/4/comments') == [{'body': '**Re F7** (momayez): because'}]
+    assert runner.sent('POST', f'repos/{REPO}/issues/4/comments') == [{'body': '**Re F7** (momayezi): because'}]
 
 
 def test_run_ledger_reads_valid_markers_only():
     assert github.run_ledger(run(1, sample())) == sample()
-    assert github.run_ledger(run(1, text='<!-- momayez-ledger:v2 {"x":1} -->')) is None
+    assert github.run_ledger(run(1, text='<!-- momayezi-ledger:v2 {"x":1} -->')) is None
     assert github.run_ledger({'id': 1, 'output': None}) is None
 
 

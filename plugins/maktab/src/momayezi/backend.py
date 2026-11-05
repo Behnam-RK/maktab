@@ -41,7 +41,7 @@ def _sent(editor: ledgers.Ledger | None) -> str:
 
 class GhLabel:
     """The `review` label on a PR (a dispatch with `ref` for a branch); the ledger comes back
-    as the `momayez` check run on the head."""
+    as the `momayezi` check run on the head."""
 
     name = 'gh-label'
 
@@ -78,7 +78,7 @@ class GhLabel:
 
 
 class GhDispatch:
-    """A `workflow_dispatch` of momayez.yaml, which fires no `pull_request` workflow. With
+    """A `workflow_dispatch` of momayezi.yaml, which fires no `pull_request` workflow. With
     `post`, the ledger comes back as the check run; without, from the run's artifact."""
 
     name = 'gh-dispatch'

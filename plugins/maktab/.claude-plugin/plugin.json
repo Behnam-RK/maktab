@@ -2,14 +2,14 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "maktab",
   "displayName": "maktab",
-  "version": "2.4.0",
-  "description": "tahrir keeps docs true to code (doc-budget gate, ADRs); momayezi runs a review ↔ fix loop, locally or against the remote momayez reviewer; tarahi drafts shaping docs and publishes them to Linear.",
+  "version": "2.5.0",
+  "description": "tahrir keeps docs true to code (doc-budget gate, ADRs); momayezi runs a review ↔ fix loop, locally or against the remote momayezi reviewer; tarahi drafts shaping docs and publishes them to Linear.",
   "author": { "name": "Behnam RK" },
   "repository": "https://github.com/Behnam-RK/maktab",
   "keywords": ["documentation", "adr", "lint", "review", "code-review", "loop", "subagents", "shaping", "linear", "pitch"],
   "skills": "./skills/",
   "mcpServers": {
-    "momayez": {
+    "momayezi": {
       "command": "bash",
       "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/momayezi.sh", "channel"],
       "env": {
@@ -18,7 +18,7 @@
       }
     }
   },
-  "channels": [{ "server": "momayez", "displayName": "momayez reviews" }],
+  "channels": [{ "server": "momayezi", "displayName": "momayezi reviews" }],
   "userConfig": {
     "tahrir_proactivity": {
       "type": "string",
@@ -51,9 +51,9 @@
     "momayezi_reviewer_effort": {
       "type": "string",
       "title": "momayezi · Reviewer effort",
-      "description": "Effort for reviewer and verifier spawns; empty keeps the reviewer agent's own (high). base>escalated (e.g. medium>xhigh) escalates like the model setting. Needs Claude Code 2.1.292+; CLAUDE_CODE_EFFORT_LEVEL overrides it.",
-      "default": "",
-      "options": ["", "low", "medium", "high", "xhigh", "medium>high", "medium>xhigh", "high>xhigh"]
+      "description": "Effort for reviewer and verifier spawns; agent keeps the reviewer agent's own (high). base>escalated (e.g. medium>xhigh) escalates like the model setting. Needs Claude Code 2.1.292+; CLAUDE_CODE_EFFORT_LEVEL overrides it.",
+      "default": "agent",
+      "options": ["agent", "low", "medium", "high", "xhigh", "medium>high", "medium>xhigh", "high>xhigh"]
     },
     "momayezi_queue_timeout": {
       "type": "string",
@@ -97,7 +97,7 @@
     "momayezi_reviewer_backend": {
       "type": "string",
       "title": "momayezi · Remote reviewer backend",
-      "description": "What starts a --reviewer remote round. repo: the repo's .momayez.toml backend, else gh-label. gh-label: the PR's review label. gh-dispatch: a momayez.yaml dispatch, which fires no pull_request workflow. k8s-job: a Job from the repo's template. $MOMAYEZI_REVIEWER_BACKEND overrides.",
+      "description": "What starts a --reviewer remote round. repo: the repo's .momayezi.toml backend, else gh-label. gh-label: the PR's review label. gh-dispatch: a momayezi.yaml dispatch, which fires no pull_request workflow. k8s-job: a Job from the repo's template. $MOMAYEZI_REVIEWER_BACKEND overrides.",
       "default": "repo",
       "options": ["repo", "gh-label", "gh-dispatch", "k8s-job"]
     },

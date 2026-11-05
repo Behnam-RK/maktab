@@ -13,7 +13,7 @@ from momayezi.k8s import K8sJob, KubeError, Kubectl
 from momayezi.protocol import REVIEWER_MARKER
 
 PR = Target(pr=4)
-NAME = f'momayez-pr4-{HEAD[:7]}-r1'
+NAME = f'momayezi-pr4-{HEAD[:7]}-r1'
 TEMPLATE = """apiVersion: batch/v1
 kind: Job
 metadata:
@@ -57,7 +57,7 @@ class FakeKube:
 
 def job(conditions=(), name=NAME, created='2026-11-05T10:00:00Z', target='#4'):
     return {'metadata': {'name': name, 'creationTimestamp': created,
-                         'annotations': {'momayez.maktab/target': target}},
+                         'annotations': {'momayezi.maktab/target': target}},
             'status': {'conditions': list(conditions)}}
 
 
@@ -74,7 +74,7 @@ def backend(routes=None, tmp_path=None, template=TEMPLATE, context=None):
     if tmp_path is not None:
         path = tmp_path / 'job.yaml'
         path.write_text(template, encoding='utf-8')
-    return K8sJob(Kubectl('momayez', context, runner), repo=REPO, template=path), runner
+    return K8sJob(Kubectl('momayezi', context, runner), repo=REPO, template=path), runner
 
 
 def test_run_kubectl(monkeypatch):
@@ -105,10 +105,10 @@ def test_kubectl_scopes_every_call_and_reads_a_missing_job_as_none():
 
 def test_job_names_are_dns_labels():
     assert k8s.job_name(PR, HEAD, 1) == NAME
-    assert k8s.job_name(Target(ref='Feat/Some_thing'), HEAD, 2) == f'momayez-feat-some-thing-{HEAD[:7]}-r2'
+    assert k8s.job_name(Target(ref='Feat/Some_thing'), HEAD, 2) == f'momayezi-feat-some-thing-{HEAD[:7]}-r2'
     long = k8s.job_name(Target(ref='a' * 80 + '-b'), HEAD, 10)
     assert len(long) == 63 and long.endswith(f'-{HEAD[:7]}-r10')
-    assert k8s.job_name(Target(ref='___'), HEAD, 1) == f'momayez-ref-{HEAD[:7]}-r1'
+    assert k8s.job_name(Target(ref='___'), HEAD, 1) == f'momayezi-ref-{HEAD[:7]}-r1'
 
 
 def test_state_reads_terminal_conditions():
@@ -122,7 +122,7 @@ def test_state_reads_terminal_conditions():
 
 def dry_run(stdin):
     assert '${' not in stdin and '"$0"' in stdin
-    return {'kind': 'Job', 'metadata': {'labels': {'app': 'momayez'}}, 'spec': {}, 'echo': stdin}
+    return {'kind': 'Job', 'metadata': {'labels': {'app': 'momayezi'}}, 'spec': {}, 'echo': stdin}
 
 
 def test_request_creates_the_configmap_the_job_and_the_owner_link(tmp_path):
@@ -130,19 +130,19 @@ def test_request_creates_the_configmap_the_job_and_the_owner_link(tmp_path):
     kube, runner = backend({('get', 'job'): NOT_FOUND, ('create', '--dry-run=client'): dry_run,
                             ('create', '-f'): made}, tmp_path, context='staging')
     handle = kube.request(PR, HEAD, None)
-    assert handle == {'backend': 'k8s-job', 'pr': '4', 'head_sha': HEAD, 'job': NAME, 'namespace': 'momayez',
+    assert handle == {'backend': 'k8s-job', 'pr': '4', 'head_sha': HEAD, 'job': NAME, 'namespace': 'momayezi',
                       'context': 'staging'}
     assert runner.verbs() == [('get', 'job'), ('create', '--dry-run=client'), ('apply', '-f'),
                               ('create', '-f'), ('patch', 'configmap')]
     configmap = json.loads(runner.calls[2][1])
-    assert configmap['metadata'] == {'name': f'{NAME}-ledger', 'labels': {'momayez.maktab/head': HEAD}}
+    assert configmap['metadata'] == {'name': f'{NAME}-ledger', 'labels': {'momayezi.maktab/head': HEAD}}
     assert configmap['data'] == {'ledger.json': ''}
     rendered = runner.calls[1][1]
     assert f'--repo, {REPO}, --pr, "4", --head, {HEAD}' in rendered and f'name: {NAME}-ledger' in rendered
     manifest = json.loads(runner.calls[3][1])
-    assert manifest['metadata']['name'] == NAME and manifest['metadata']['namespace'] == 'momayez'
-    assert manifest['metadata']['labels'] == {'app': 'momayez', 'momayez.maktab/head': HEAD}
-    assert manifest['metadata']['annotations'] == {'momayez.maktab/target': '#4'}
+    assert manifest['metadata']['name'] == NAME and manifest['metadata']['namespace'] == 'momayezi'
+    assert manifest['metadata']['labels'] == {'app': 'momayezi', 'momayezi.maktab/head': HEAD}
+    assert manifest['metadata']['annotations'] == {'momayezi.maktab/target': '#4'}
     patch = json.loads(runner.calls[4][0][-1])
     assert patch['metadata']['ownerReferences'][0] == {'apiVersion': 'batch/v1', 'kind': 'Job',
                                                        'name': NAME, 'uid': 'u-1'}
@@ -152,7 +152,7 @@ def test_request_sends_the_editor_ledger_and_names_the_next_round(tmp_path):
     kube, runner = backend({('get', 'job'): NOT_FOUND, ('create', '--dry-run=client'): dry_run,
                             ('create', '-f'): {'metadata': {'uid': 'u'}}}, tmp_path)
     handle = kube.request(Target(ref='feat'), HEAD, sample())
-    assert handle['job'] == f'momayez-feat-{HEAD[:7]}-r{sample()["round"] + 1}' and 'context' not in handle
+    assert handle['job'] == f'momayezi-feat-{HEAD[:7]}-r{sample()["round"] + 1}' and 'context' not in handle
     assert ledgers.loads(json.loads(runner.calls[2][1])['data']['ledger.json']) == sample()
     assert '--ref, "feat"' in runner.calls[1][1]
 
@@ -188,7 +188,7 @@ def test_request_needs_a_template_and_a_safe_ref(tmp_path):
         kube.request(Target(ref='-x'), HEAD, None)
 
 
-HANDLE = {'backend': 'k8s-job', 'pr': '4', 'head_sha': HEAD, 'job': NAME, 'namespace': 'momayez'}
+HANDLE = {'backend': 'k8s-job', 'pr': '4', 'head_sha': HEAD, 'job': NAME, 'namespace': 'momayezi'}
 
 
 def marker(ledger):
@@ -263,7 +263,7 @@ def test_status_finds_the_newest_job_for_the_target():
                       job(name=NAME, created='2')]}
     kube, runner = backend({('get', 'jobs'): {'items': []}})
     assert kube.status(PR, HEAD) == {'status': 'none', 'pr': '4', 'head_sha': HEAD}
-    assert runner.calls[0][0][-4:] == ['-l', f'momayez.maktab/head={HEAD}', '-o', 'json']
+    assert runner.calls[0][0][-4:] == ['-l', f'momayezi.maktab/head={HEAD}', '-o', 'json']
     runner.routes = {('get', 'jobs'): jobs, ('get', 'job'): [job(), job([COMPLETE])],
                      ('get', 'pods'): {'items': [pod('p')]}, ('logs', 'p'): marker(sample())}
     assert kube.status(PR, HEAD) == {'status': 'pending', 'pr': '4', 'head_sha': HEAD, 'job': NAME,
