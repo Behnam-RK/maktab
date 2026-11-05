@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import ledger as ledgers
+from . import net
 from .protocol import ARTIFACT, CHECK_RUN, FINDING_MARKER, REVIEWER_MARKER
 
 Runner = Callable[[list[str], str | None], str]
@@ -24,7 +25,18 @@ class GhError(RuntimeError):
         self.status = int(match.group(1)) if match else None
 
 
+def reads(args: list[str]) -> bool:
+    """Whether a gh call changes nothing: an API GET, or anything but `api` and `workflow run`."""
+    if args[:1] == ['api']:
+        return 'GET' == (args[args.index('-X') + 1] if '-X' in args else 'GET')
+    return args[:2] != ['workflow', 'run']
+
+
 def run_gh(args: list[str], stdin: str | None = None) -> str:
+    return net.retrying(lambda: _run_gh(args, stdin), reads(args))
+
+
+def _run_gh(args: list[str], stdin: str | None) -> str:
     try:
         done = subprocess.run(['gh', *args], input=stdin, capture_output=True, text=True,
                               cwd=os.environ.get('CLAUDE_PROJECT_DIR') or None)

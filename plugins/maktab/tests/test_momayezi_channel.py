@@ -325,3 +325,45 @@ def test_a_bad_config_is_a_tool_error():
     srv.settings = bad
     text, error = call(srv, out, 'request_review', {'pr': 4})
     assert error and text == 'ConfigError: unknown reviewer backend'
+
+
+def lean(data):
+    return {'target': data['target'], 'round': data['round'],
+            'findings': [{'id': f['id'], 'state': 'wont-fix', 'reason': 'refuted by t.py:3'} for f in data['findings']]}
+
+
+def test_request_review_rejects_a_ledger_that_is_not_json():
+    srv, out, runner = server()
+    text, error = call(srv, out, 'request_review', {'pr': 4, 'ledger': '{nope'})
+    assert error and 'not JSON' in text and not runner.calls
+
+
+def test_a_lean_editor_ledger_is_filled_from_the_last_delivered_review(no_thread):
+    srv, out, runner = server({('GET', PULL): {'head': {'sha': HEAD}}, ('GET', runs_path()): {'check_runs': []},
+                               ('GET', f'repos/{REPO}/issues/4/comments?per_page=100'): [[]]})
+    srv.delivered[(REPO, '#4')] = sample()
+    got, error = call(srv, out, 'request_review', {'pr': 4, 'ledger': lean(sample())})
+    assert not error and got['status'] == 'requested'
+    (body,) = [b['body'] for m, p, b in runner.calls if m in ('POST', 'PATCH') and 'comments' in p]
+    sent = ledgers.from_marker(body, EDITOR_MARKER)
+    assert all(f['state'] == 'wont-fix' and f['severity'] for f in sent['findings'])
+
+
+def test_a_lean_editor_ledger_falls_back_to_the_prs_newest_review(no_thread):
+    commits = f'repos/{REPO}/pulls/4/commits?per_page=100'
+    srv, out, runner = server({('GET', PULL): {'head': {'sha': HEAD}}, ('GET', commits): [[[{'sha': HEAD}]]],
+                               ('GET', runs_path()): {'check_runs': [run(2, sample())]},
+                               ('GET', f'repos/{REPO}/issues/4/comments?per_page=100'): [[]]})
+    got, error = call(srv, out, 'request_review', {'pr': 4, 'ledger': lean(sample())})
+    assert not error, got
+    srv, out, _ = server(settings=config.Settings('gh-dispatch', 'none'))
+    text, error = call(srv, out, 'request_review', {'ref': 'feat', 'ledger': lean(sample())})
+    assert error and 'invalid ledger' in text
+
+
+def test_the_poller_remembers_a_delivered_ledger():
+    done = {'pr': '4', 'head_sha': HEAD, 'status': 'done', 'verdict': 'findings', 'ledger': sample()}
+    srv, out, _ = server()
+    srv.pending[(REPO, HEAD)] = {'backend': Stub(results=[done]), 'handle': {}, 'post': False, 'since': srv.clock()}
+    srv.poll_once()
+    assert srv.delivered == {(REPO, '#4'): sample()}

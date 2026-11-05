@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+from collections.abc import Callable
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -101,6 +102,31 @@ def validate(value: Any) -> Ledger:
     if found:
         raise LedgerError('invalid ledger: ' + '; '.join(found[:5]))
     return value
+
+
+# --- a lenient editor ledger: target, round and each finding's id, state, at, claim, reason.
+
+HEADER = ('lenses', 'model', 'tier', 'verdict', 'cited_files', 'truncated')
+
+
+def complete_editor(raw: Any, last: Callable[[], Ledger | None]) -> Ledger:
+    """`raw` as a full ledger: as it is when it validates, else filled from `last()`, the last
+    remote ledger, finding by id. A finding it lacks is refused, never invented."""
+    if not errors(raw):
+        return raw
+    found = last() if isinstance(raw, dict) and isinstance(raw.get('findings'), list) else None
+    if found is None:
+        validate(raw)  # raises; with no remote ledger only the full form will do
+    assert found is not None
+    prior = {f['id']: f for f in found['findings']}
+    findings = []
+    for item in raw['findings']:
+        ident = item.get('id') if isinstance(item, dict) else None
+        if ident not in prior:
+            raise LedgerError(f'{ident} is not in the last remote ledger: send its full finding')
+        findings.append({**prior[ident], **item})
+    out = {'version': found['version'], **{k: copy.deepcopy(found[k]) for k in HEADER}, **raw}
+    return validate(dict(out, findings=findings))
 
 
 # --- canonical JSON: loads(dumps(x)) == x, and dumps(loads(s)) == s for canonical s.

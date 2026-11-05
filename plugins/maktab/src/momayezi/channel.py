@@ -16,7 +16,7 @@ from typing import IO, Any
 from . import backend as backends
 from . import config
 from . import ledger as ledgers
-from . import poll, post
+from . import poll, post, prior
 from .github import Gh, Target
 from .protocol import CAP, EDITOR_MARKER, EDITOR_RESET, PENDING_TTL
 
@@ -78,6 +78,7 @@ class Server:
         self.settings, self.make = settings, make
         self.lock = threading.Lock()
         self.pending: dict[tuple[str, str], dict[str, Any]] = {}
+        self.delivered: dict[tuple[str, str], ledgers.Ledger] = {}
         self.poller: threading.Thread | None = None
         self._gh: Gh | None = None
 
@@ -139,14 +140,16 @@ class Server:
     def request_review(self, args: dict[str, Any]) -> dict[str, Any]:
         target = target_of(args)
         raw = args.get('ledger')
-        if raw in (None, ''):
-            editor = None  # round 1: nothing to carry over
-        elif isinstance(raw, str):
-            editor = ledgers.loads(raw)
-        else:
-            editor = ledgers.validate(raw)
         settings = self.settings()
         gh = self.gh
+        if isinstance(raw, str) and raw:
+            try:
+                raw = json.loads(raw)
+            except ValueError as exc:
+                raise ledgers.LedgerError(f'not JSON: {exc}') from None
+        editor = None  # round 1: nothing to carry over
+        if raw not in (None, ''):
+            editor = ledgers.complete_editor(raw, lambda: self.last_remote(target, settings))
         backend = self.make(settings, gh)
         head = gh.head(target)
         if target.pr and settings.pr_comments == 'all':
@@ -162,6 +165,14 @@ class Server:
         self.watch(backend, handle, post=settings.pr_comments == 'all' and backend.name == 'k8s-job')
         return {'status': 'requested', **target.meta(), 'head_sha': head, 'backend': backend.name,
                 'wait': backends.wait_hint(target, head, handle)}
+
+    def last_remote(self, target: Target, settings: config.Settings) -> ledgers.Ledger | None:
+        """The reviewer ledger a lean editor ledger is filled from: the last one this session
+        delivered for the target, else the PR's newest one when the PR carries them."""
+        found = self.delivered.get((self.gh.repo, target.label))
+        if found is None and target.pr and settings.pr_comments == 'all':
+            found = prior.from_pr(self.gh, target.pr)
+        return found
 
     def review_status(self, args: dict[str, Any]) -> dict[str, Any]:
         target = target_of(args)
@@ -202,6 +213,8 @@ class Server:
                 continue
             if result:
                 self.pending.pop(key, None)
+                if 'ledger' in result:
+                    self.delivered[(key[0], Target.from_meta(result).label)] = result['ledger']
                 if entry['post'] and result['status'] == 'done':
                     self.publish(result)
                 self.emit(result)

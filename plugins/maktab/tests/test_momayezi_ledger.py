@@ -143,3 +143,36 @@ def test_an_empty_ledger_that_cannot_fit_raises_without_a_last_id():
     data = dict(sample(), findings=[], notes=['n' * 500])
     with pytest.raises(ledgers.LedgerError, match='does not fit'):
         ledgers.fit(data, REVIEWER_MARKER, cap=100)
+
+
+def lean(data):
+    return {'target': data['target'], 'round': data['round'],
+            'findings': [{k: f[k] for k in ('id', 'state', 'at', 'claim') if k in f} for f in data['findings']]}
+
+
+def test_a_full_editor_ledger_passes_as_it_is():
+    assert ledgers.complete_editor(sample(), lambda: None) == sample()
+
+
+def test_a_lean_editor_ledger_is_filled_from_the_last_remote_one():
+    last = sample()
+    raw = lean(last)
+    raw['findings'][0]['state'] = 'wont-fix'
+    raw['findings'][0]['reason'] = 'the test at t.py:3 refutes it'
+    got = ledgers.complete_editor(raw, lambda: last)
+    assert got['findings'][0] == dict(last['findings'][0], state='wont-fix', reason='the test at t.py:3 refutes it')
+    assert got['model'] == last['model'] and got['round'] == raw['round']
+
+
+def test_a_lean_ledger_needs_a_remote_one_and_known_ids():
+    raw = lean(sample())
+    with pytest.raises(ledgers.LedgerError, match='invalid ledger'):
+        ledgers.complete_editor(raw, lambda: None)
+    with pytest.raises(ledgers.LedgerError, match='invalid ledger'):
+        ledgers.complete_editor('nope', sample)
+    raw['findings'].append({'id': 'F99', 'state': 'open'})
+    with pytest.raises(ledgers.LedgerError, match='F99 is not in the last remote ledger'):
+        ledgers.complete_editor(raw, sample)
+    raw['findings'][-1] = 'F1'
+    with pytest.raises(ledgers.LedgerError, match='None is not in'):
+        ledgers.complete_editor(raw, sample)

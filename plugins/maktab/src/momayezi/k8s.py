@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from . import ledger as ledgers
+from . import net
 from . import poll
 from .github import Target
 from .protocol import (CONFIGMAP_CAP, EDITOR_MARKER, K8S_HEAD_LABEL, K8S_TARGET_ANNOTATION,
@@ -31,7 +32,22 @@ class KubeError(RuntimeError):
         self.not_found = '(NotFound)' in message
 
 
+READS = ('get', 'logs')
+
+
+def verb(args: list[str]) -> str:
+    """The kubectl verb after the `--context x` and `-n ns` scope."""
+    rest = list(args)
+    while rest and rest[0] in ('--context', '-n'):
+        rest = rest[2:]
+    return rest[0] if rest else ''
+
+
 def run_kubectl(args: list[str], stdin: str | None = None) -> str:
+    return net.retrying(lambda: _run_kubectl(args, stdin), verb(args) in READS)
+
+
+def _run_kubectl(args: list[str], stdin: str | None) -> str:
     try:
         done = subprocess.run(['kubectl', *args], input=stdin, capture_output=True, text=True,
                               cwd=os.environ.get('CLAUDE_PROJECT_DIR') or None)
