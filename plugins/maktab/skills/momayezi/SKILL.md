@@ -33,11 +33,11 @@ Arguments: `$ARGUMENTS`
 4. **Lenses.** By changed paths, per "Picking" in
    [references/lenses.md](references/lenses.md), capped at `--max-reviewers`,
    else `${user_config.momayezi_max_reviewers}` (2 if blank or unsubstituted).
-5. **Reviewer model.** Order: `haiku < sonnet < opus < fable`. Take the
-   stronger of your own model and the configured floor
-   `${user_config.momayezi_reviewer_model}` (`opus` if blank or unsubstituted). Smart's
-   `sonnet` pick (smart.md) replaces that; `--model` beats all. Pass it as the
-   Agent `model` parameter on every reviewer spawn.
+5. **Model and effort.** `sonnet < opus < fable`: the stronger of yours
+   and the floor `${user_config.momayezi_reviewer_model}` (`opus` if
+   blank). Effort: `${user_config.momayezi_reviewer_effort}`, none if blank.
+   A `base>escalated` pair means base, unless smart escalates (smart.md).
+   `--model` wins. Pass both to every reviewer and verifier spawn.
 6. **Cap.** `--max-rounds`, else `${user_config.momayezi_max_rounds}` (3 if blank or
    unsubstituted).
 7. **Gate** (code only). Find it per [references/gate.md](references/gate.md).
@@ -49,7 +49,7 @@ Arguments: `$ARGUMENTS`
 Momayezi: <target>
 Smart:   <tier> (<n> lines, <f> files, <risky|plain>) | off
 Intent:  <goal> | reqs: … | constraints: … | out: …
-Lenses:  <a, b> on <model>   Cap: <n>   Gate: <command> (<green|red|none>) | n/a
+Lenses:  <a, b> on <model>[ · effort <e>]   Cap: <n>   Gate: <command> (<green|red|none>) | n/a
 Reviewer: local | remote (commits and pushes each round to <branch>)
 ```
 
@@ -67,9 +67,9 @@ Reviewer: local | remote (commits and pushes each round to <branch>)
    duplicates across lenses. A finding matching a ledger entry keeps that id;
    a `wont-fix` re-raised without new evidence is dropped. New findings get
    the next ledger id (`F1`, `F2`, …).
-3. **Verify** (only with `--verify`): one more reviewer spawn, same model,
-   given the surviving findings by ledger id, to answer each `confirmed` or
-   `refuted` with one line of evidence (the `momayez` agent, Verify mode). Drop
+3. **Verify** (`--verify` only): one more reviewer, given the surviving
+   findings by ledger id, answers each `confirmed` or `refuted` with one line
+   of evidence (the `momayez` agent, Verify mode). Drop
    refuted ones.
 4. **Decide each finding yourself.** Open the cited line. Real and ≥minor: fix
    it, smallest change, with a test where the project has a test harness and

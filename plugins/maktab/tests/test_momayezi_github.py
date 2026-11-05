@@ -94,7 +94,7 @@ def test_reply_on_the_newest_thread_or_the_pr():
 
 def test_run_ledger_reads_valid_markers_only():
     assert github.run_ledger(run(1, sample())) == sample()
-    assert github.run_ledger(run(1, text='<!-- momayez-ledger:v1 {"x":1} -->')) is None
+    assert github.run_ledger(run(1, text='<!-- momayez-ledger:v2 {"x":1} -->')) is None
     assert github.run_ledger({'id': 1, 'output': None}) is None
 
 

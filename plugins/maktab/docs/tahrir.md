@@ -72,7 +72,7 @@ the maktab plugin it ships in (pre-2.0 tags were `mostofi--vX.Y.Z`):
 ```yaml
 # .pre-commit-config.yaml
 - repo: https://github.com/Behnam-RK/maktab
-  rev: <sha>  # frozen: maktab--v2.2.0
+  rev: <sha>  # frozen: maktab--v2.3.0
   hooks:
     - id: tahrir
       additional_dependencies: ["tiktoken>=0.9,<1"]

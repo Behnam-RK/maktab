@@ -40,7 +40,9 @@ plans and specs work too.
 `--smart` sizes the review from `git diff --shortstat` and untracked files,
 without reading the diff: a four-tier table sets reviewers and rounds, and a
 path matching the `security` rule bumps one tier. A small, mechanical change
-reviews on `sonnet`, never `haiku`. Explicit flags win; tiers live in
+reviews on `sonnet`. With a `floor>escalate` model (or `base>escalated`
+effort) setting, a Large/Max or risky change moves up to the second, and the
+announcement and ledger notes say why. Explicit flags win; tiers live in
 [smart.md](../skills/momayezi/references/smart.md).
 
 ## Review-only
@@ -70,11 +72,14 @@ outside the checkout, so on the runner:
 
 ## Config
 
-Set in `/config` or when enabling the plugin:
+Set in `/config` or when enabling the plugin. Reviewers run on the stronger
+of the editor's model and the floor; smart drops a Small, plain change to
+`sonnet` and escalates a heavy one; `--model` beats all.
 
 | Option | Default | |
 |---|---|---|
-| `momayezi_reviewer_model` | `opus` | Floor; reviewers get the stronger of this and the editor's model. |
+| `momayezi_reviewer_model` | `opus` | Floor (`sonnet`, `opus`, `fable`), or `floor>escalate` such as `sonnet>opus`. |
+| `momayezi_reviewer_effort` | empty | Reviewer and verifier effort, or `base>escalated` such as `medium>xhigh`; empty keeps the agent's `high`. |
 | `momayezi_max_rounds` | `3` | Round cap; the capped round reviews at full scope. |
 | `momayezi_max_reviewers` | `2` | Most lenses auto-picked per round, and most reviewers at once. |
 | `momayezi_smart` | `off` | `on` sizes every run like `--smart`; `--no-smart` turns it off per run. |

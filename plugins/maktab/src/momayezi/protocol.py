@@ -5,8 +5,8 @@ LABEL = 'review'
 WORKFLOW = 'momayez.yaml'
 WORKFLOW_INPUTS = ('ref', 'ledger')
 
-REVIEWER_MARKER = 'momayez-ledger:v1'
-EDITOR_MARKER = 'momayezi-editor-ledger:v1'
+REVIEWER_MARKER = 'momayez-ledger:v2'
+EDITOR_MARKER = 'momayezi-editor-ledger:v2'
 # A new loop's round 1: the PR's review history is not its prior.
 EDITOR_RESET = f'<!-- {EDITOR_MARKER} null -->'
 FINDING_MARKER = 'momayez-finding:'

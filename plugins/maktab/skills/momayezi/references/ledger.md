@@ -2,14 +2,16 @@
 
 The loop's one interface. Local reviewers and the remote `momayez` check run
 both feed it, and it is all either end hands on. Its shape is
-[ledger.schema.json](ledger.schema.json) (`v1`).
+[ledger.schema.json](ledger.schema.json) (`v2`).
 
 ## Header
 
 - `target`: `base_sha`, and `head_sha`, the head this round reviewed. Add
   `repo` and `pr` or `ref` when known; CI can't learn them, and
-  `momayezi-post` fills them in.
-- `round`, `lenses`, `model`, and `tier`: smart's tier, or `off`.
+  `momayezi-post` fills them in. `rebased_from`: the head requested, when
+  the reviewer followed a rebase to an identical change.
+- `round`, `lenses`, `model`, and `tier`: smart's tier, or `off`. `effort`:
+  the effort passed to reviewers, omitted when none was.
 - `verdict`: `findings` if this round raised or re-raised any finding, else
   `clean`.
 - `cited_files`: every file any finding has cited. "Files no finding has

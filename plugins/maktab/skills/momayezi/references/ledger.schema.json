@@ -1,12 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "momayezi ledger v1",
+  "title": "momayezi ledger v2",
   "description": "One momayezi round's ledger: the header and every finding so far. See ledger.md.",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "target", "round", "lenses", "model", "tier", "verdict", "cited_files", "truncated", "findings"],
   "properties": {
-    "version": { "enum": ["v1"] },
+    "version": { "enum": ["v2"] },
     "target": {
       "type": "object",
       "additionalProperties": false,
@@ -16,12 +16,14 @@
         "pr": { "type": "integer", "minimum": 1 },
         "ref": { "type": "string", "minLength": 1 },
         "base_sha": { "type": "string", "pattern": "^[0-9a-f]{7,64}$" },
-        "head_sha": { "type": "string", "pattern": "^[0-9a-f]{7,64}$" }
+        "head_sha": { "type": "string", "pattern": "^[0-9a-f]{7,64}$" },
+        "rebased_from": { "type": "string", "pattern": "^[0-9a-f]{7,64}$" }
       }
     },
     "round": { "type": "integer", "minimum": 1 },
     "lenses": { "type": "array", "items": { "$ref": "#/definitions/lens" } },
     "model": { "type": "string", "minLength": 1 },
+    "effort": { "enum": ["low", "medium", "high", "xhigh"] },
     "tier": { "enum": ["small", "medium", "large", "max", "off"] },
     "verdict": { "enum": ["clean", "findings"] },
     "cited_files": { "type": "array", "items": { "type": "string", "minLength": 1 } },

@@ -106,7 +106,7 @@ def test_request_review_on_a_branch_dispatches_the_workflow(no_thread):
 
 def test_request_review_rejects_a_bad_ledger():
     srv, out, runner = server()
-    text, error = call(srv, out, 'request_review', {'pr': 4, 'ledger': {'version': 'v1'}})
+    text, error = call(srv, out, 'request_review', {'pr': 4, 'ledger': {'version': 'v2'}})
     assert error and 'invalid ledger' in text and not runner.calls
 
 

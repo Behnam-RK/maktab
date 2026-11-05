@@ -1,5 +1,5 @@
 """momayezi-review: one review-only round on a fresh clone of the head, the reviewer end of the
-k8s-job backend. It prints the ledger as the `momayez-ledger:v1` marker on its last line."""
+k8s-job backend. It prints the ledger as the `momayez-ledger:v2` marker on its last line."""
 
 from __future__ import annotations
 

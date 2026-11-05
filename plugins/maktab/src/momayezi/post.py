@@ -51,9 +51,10 @@ def summary(ledger: ledgers.Ledger) -> str:
     for f in ledger['findings']:
         if f['state'] == 'open':
             counts[f['severity']] += 1
+    effort = f' · effort {ledger["effort"]}' if 'effort' in ledger else ''
     lines = [
         f'Round {ledger["round"]} · {ledger["verdict"]} · lenses {", ".join(ledger["lenses"])} '
-        f'on {ledger["model"]} · tier {ledger["tier"]}',
+        f'on {ledger["model"]}{effort} · tier {ledger["tier"]}',
         'Open: ' + ', '.join(f'{n} {s}' for s, n in counts.items()),
     ]
     lines += [f'- {headline(f)}: {f["claim"]}' for f in fresh(ledger)]

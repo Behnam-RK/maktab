@@ -93,8 +93,9 @@ Constants in [protocol.py](../src/momayezi/protocol.py):
 | Workflow | `momayez.yaml`, inputs `ref`, `ledger`; gh-dispatch adds `pr`, `head`, `post` |
 | Artifact | `momayez-ledger`, holding `ledger.json` |
 | k8s | label `momayez.maktab/head`, annotation `momayez.maktab/target` |
-| Markers | `<!-- momayez-ledger:v1 <json> -->`, editor comment `<!-- momayezi-editor-ledger:v1 <json> -->` |
+| Markers | `<!-- momayez-ledger:v2 <json> -->`, editor comment `<!-- momayezi-editor-ledger:v2 <json> -->` |
 | Size cap | 65,535 bytes; drops nits, then minor evidence, minor findings, all evidence; `truncated`, `last_id` |
+| Version | `v2` since 2.3.0; `v1` is not read (open loops restart). One pin for both ends. |
 
 For CI, pin a release: `uvx --from git+https://github.com/Behnam-RK/maktab@maktab--vX.Y.Z <script>`.
 `momayezi-post`, `-prior` and `-wait` read `GH_TOKEN` (an App or Actions

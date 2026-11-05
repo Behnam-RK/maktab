@@ -22,7 +22,7 @@ def test_the_validator_reads_the_shipped_schema():
 
 
 @pytest.mark.parametrize('mutate, message', [
-    (lambda d: d.update(version='v2'), "$.version: 'v2' is not one of"),
+    (lambda d: d.update(version='v1'), "$.version: 'v1' is not one of"),
     (lambda d: d.pop('round'), '$: missing round'),
     (lambda d: d.update(extra=1), '$: unexpected extra'),
     (lambda d: d.update(round='2'), '$.round: expected integer'),
@@ -59,7 +59,7 @@ def test_schema_falls_back_to_the_skill_copy_and_fails_when_both_are_gone(monkey
     ledgers.schema.cache_clear()
     skill_copy = ledgers.SCHEMA_PATHS[1]
     monkeypatch.setattr(ledgers, 'SCHEMA_PATHS', (tmp_path / 'missing.json', skill_copy))
-    assert ledgers.schema()['title'] == 'momayezi ledger v1'
+    assert ledgers.schema()['title'] == 'momayezi ledger v2'
     ledgers.schema.cache_clear()
     monkeypatch.setattr(ledgers, 'SCHEMA_PATHS', (tmp_path / 'missing.json',))
     with pytest.raises(ledgers.LedgerError, match='not found'):
@@ -79,7 +79,7 @@ def test_markers_survive_comment_closers_in_evidence():
 
 def test_an_invalid_marker_raises():
     with pytest.raises(ledgers.LedgerError):
-        ledgers.from_marker(f'<!-- {REVIEWER_MARKER} {{"version":"v1"}} -->', REVIEWER_MARKER)
+        ledgers.from_marker(f'<!-- {REVIEWER_MARKER} {{"version":"v2"}} -->', REVIEWER_MARKER)
 
 
 def big(severity: str, n: int, evidence: int = 400) -> list[dict]:

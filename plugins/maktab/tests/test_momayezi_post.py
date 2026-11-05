@@ -44,6 +44,7 @@ def test_summary_counts_open_findings_and_flags_truncation():
     assert 'Open: 1 critical, 0 major, 0 minor, 1 nit' in text
     assert '- **F2** critical' in text and 'Truncated' in text and '> No intent brief' in text
     assert 'Truncated' not in post.summary(dict(sample(), notes=[]))
+    assert 'on opus · effort xhigh · tier' in post.summary(dict(sample(), effort='xhigh'))
 
 
 def test_check_run_is_created_with_the_marker():

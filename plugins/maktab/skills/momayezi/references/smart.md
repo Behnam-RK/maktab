@@ -31,8 +31,17 @@ changes and the high end for entangled or cross-module ones.
 **Risky**: the `security` rule in [lenses.md](lenses.md) matches a changed
 path. Judge by path only, never by content.
 
-## Model
+## Model and effort
 
 `sonnet` only for a Small, plain change that is mechanical: renames, moves,
 formatting, comment or typo edits, version bumps, generated or dependency
-churn. Never `haiku`. Anything else keeps the normal reviewer-model rule.
+churn. Anything else keeps the normal reviewer-model rule.
+
+**Escalation.** A `floor>escalate` model setting, or a `base>escalated`
+effort setting, escalates when the tier is Large or Max, or a risky path
+bumped it. The round then runs on the stronger of the escalate value and the
+normal pick; escalation only raises. Order efforts
+`low < medium < high < xhigh`. A round is escalated only when this raised the
+pick: announce `on <model> · effort <e> (escalated: <large|max>, risky)`, and
+add the ledger note `Escalated to <model>, effort <e>: <reasons>`, naming only
+what rose. Smart off: a pair is its first value.

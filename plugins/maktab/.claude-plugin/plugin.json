@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "maktab",
   "displayName": "maktab",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "tahrir keeps docs true to code (doc-budget gate, ADRs); momayezi runs a review ↔ fix loop, locally or against the remote momayez reviewer; tarahi drafts shaping docs and publishes them to Linear.",
   "author": { "name": "Behnam RK" },
   "repository": "https://github.com/Behnam-RK/maktab",
@@ -44,9 +44,16 @@
     "momayezi_reviewer_model": {
       "type": "string",
       "title": "momayezi · Reviewer model floor",
-      "description": "Weakest model reviewers may run on. Reviewers get the stronger of this and the editor's own model; /maktab:momayezi --model overrides per run.",
+      "description": "Weakest model reviewers may run on; reviewers get the stronger of this and the editor's own model. floor>escalate (e.g. sonnet>opus): under smart sizing, a Large/Max or risky change moves up to the second. /maktab:momayezi --model overrides per run.",
       "default": "opus",
-      "options": ["haiku", "sonnet", "opus", "fable"]
+      "options": ["sonnet", "opus", "fable", "sonnet>opus", "sonnet>fable", "opus>fable"]
+    },
+    "momayezi_reviewer_effort": {
+      "type": "string",
+      "title": "momayezi · Reviewer effort",
+      "description": "Effort for reviewer and verifier spawns; empty keeps the reviewer agent's own (high). base>escalated (e.g. medium>xhigh) escalates like the model setting.",
+      "default": "",
+      "options": ["", "low", "medium", "high", "xhigh", "medium>high", "medium>xhigh", "high>xhigh"]
     },
     "momayezi_max_rounds": {
       "type": "string",

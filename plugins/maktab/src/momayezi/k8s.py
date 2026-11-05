@@ -1,5 +1,5 @@
 """k8s-job: the review runs as a Kubernetes Job made from the repo's template; the ledger is the
-last `momayez-ledger:v1` marker in its pod's log. Every cluster call goes through `Kubectl`."""
+last `momayez-ledger:v2` marker in its pod's log. Every cluster call goes through `Kubectl`."""
 
 from __future__ import annotations
 
