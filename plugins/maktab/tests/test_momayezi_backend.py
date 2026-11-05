@@ -168,3 +168,23 @@ def test_wait_hints():
     hint = backend.wait_hint(Target(ref="it's"), HEAD, job)
     words = shlex.split(hint)
     assert words[:3] == ['momayezi-wait', "it's", HEAD] and json.loads(words[-1]) == job
+
+
+def test_a_failed_run_says_why_from_its_error_file():
+    failed = {'id': 7, 'status': 'completed', 'conclusion': 'failure'}
+    told = '{"reason":"hit your limit","resets_at":"2026-11-05T15:00:00Z","status":"limited"}'
+    client, runner = dispatch_client({('GET', RUN): failed, ('GET', ARTIFACTS): {'artifacts': [{'name': 'momayez-ledger'}]}},
+                                     files={'error.json': told})
+    got = GhDispatch(client, post=False).check(handle())
+    assert got['status'] == 'limited' and got['reason'] == 'hit your limit' and got['conclusion'] == 'failure'
+    runner.routes[('GET', ARTIFACTS)] = GhError('HTTP 403')
+    got = GhDispatch(client, post=False).check(handle())
+    assert got['status'] == 'failed' and got['reason'] == 'the review run ended failure'
+
+
+def test_a_rebased_artifact_ledger_is_accepted():
+    moved = dict(sample(), target=dict(sample()['target'], head_sha='d' * 40, rebased_from=HEAD))
+    client, _ = dispatch_client({('GET', RUN): {'id': 7, 'status': 'completed', 'conclusion': 'success'},
+                                 ('GET', ARTIFACTS): {'artifacts': [{'name': 'momayez-ledger'}]}},
+                                files={'ledger.json': ledgers.dumps(moved)})
+    assert GhDispatch(client, post=False).check(handle())['status'] == 'done'

@@ -120,3 +120,26 @@ def test_publish_without_a_check_run_posts_only_the_review():
     assert post.publish(client, Target(pr=4), sample(), with_check_run=False) == 'inline'
     assert not runner.sent('POST', CHECKS) and not runner.sent('GET', runs_path())
     assert len(runner.sent('POST', REVIEWS)) == 1
+
+
+def test_a_rebased_review_also_lands_on_the_requested_head():
+    old = 'c' * 40
+    moved = dict(sample(), target=dict(sample()['target'], rebased_from=old))
+    client, runner = gh({('GET', runs_path()): {'check_runs': []}, ('GET', runs_path(old)): {'check_runs': []}})
+    post.check_run(client, moved)
+    heads = [body['head_sha'] for body in runner.sent('POST', f'repos/{REPO}/check-runs')]
+    assert heads == [HEAD, old]
+
+
+def test_an_error_run_is_a_failed_check_run_that_says_why():
+    client, runner = gh({('GET', runs_path()): {'check_runs': []}})
+    why = {'status': 'limited', 'reason': 'hit your limit', 'resets_at': '2026-11-05T15:00:00Z'}
+    assert post.error_run(client, HEAD, why) == 'limited'
+    (body,) = runner.sent('POST', f'repos/{REPO}/check-runs')
+    assert body['conclusion'] == 'failure' and body['output']['summary'] == 'hit your limit (resets 2026-11-05T15:00:00Z)'
+    from momayezi import poll
+    run_ = {'id': 9, 'status': 'completed', 'conclusion': 'failure', 'output': body['output'], 'html_url': 'u'}
+    runner.routes[('GET', runs_path())] = {'check_runs': [run_]}
+    got = poll.check(client, Target(pr=4), HEAD, set())
+    assert got['status'] == 'limited' and got['resets_at'] == '2026-11-05T15:00:00Z'
+    assert poll.summary(got)['limited'] is True

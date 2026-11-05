@@ -7,6 +7,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from . import failure as failures
 from .github import Gh, Target, run_ledger
 from .protocol import POLL_BACKOFF, POLL_FIRST, POLL_MAX, WAIT_TIMEOUT
 
@@ -62,7 +63,8 @@ def check(gh: Gh, target: Target, head: str, seen: set[int], since: str = '') ->
         base = {**target.meta(), 'head_sha': head, 'url': run.get('html_url', '')}
         found = run_ledger(run)
         if found is None:
-            return {**base, 'status': 'failed', 'conclusion': run.get('conclusion')}
+            why = failures.from_text((run.get('output') or {}).get('text')) or {'status': 'failed'}
+            return {**base, **why, 'conclusion': run.get('conclusion')}
         return {**base, 'status': 'done', 'verdict': found['verdict'], 'ledger': found}
     base = {**target.meta(), 'head_sha': head}
     if opened and opened.get('status') == 'in_progress':
@@ -70,12 +72,19 @@ def check(gh: Gh, target: Target, head: str, seen: set[int], since: str = '') ->
     return pending(base, 'queued', since)
 
 
+def reviewed(found: dict[str, Any], head: str) -> bool:
+    """Whether a ledger is the review of `head`: of it, or of the same change rebased."""
+    return head in (found['target']['head_sha'], found['target'].get('rebased_from'))
+
+
 def summary(result: Result) -> Result:
     """A finished review as `review_status` reports it: done, with a ledger or `failed`."""
     out = {k: result[k] for k in ('pr', 'ref', 'head_sha', 'url', 'job') if k in result}
     if result['status'] == 'done':
         return {'status': 'done', **out, 'ledger': result['ledger'], 'verdict': result['verdict'], 'failed': False}
-    why = {k: result[k] for k in ('reason', 'conclusion') if k in result}
+    why = {k: result[k] for k in ('reason', 'conclusion', 'resets_at') if k in result}
+    if result['status'] == 'limited':
+        why['limited'] = True
     return {'status': 'done', **out, 'failed': True, **why}
 
 

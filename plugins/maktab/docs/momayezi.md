@@ -49,14 +49,20 @@ announcement and ledger notes say why. Explicit flags win; tiers live in
 
 One review round, no edits, flags only (never your `/config`), smart on.
 A prior `--ledger` narrows it to the diff since that ledger's head plus
-uncited files. nameless's `momayez` check run executes:
+uncited files. Every backend runs it through `momayezi-review`
+([momayezi-protocol.md](momayezi-protocol.md)), which clones the head and calls:
 
 ```
 claude -p "/maktab:momayezi --review-only --base … --head … --ledger … --intent … --json" \
-  --permission-mode dontAsk --tools Read,Bash,Agent,WebFetch,WebSearch \
-  --allowedTools "Bash(rg *)" "Bash(git diff *)" … --disallowedTools Edit,Write,NotebookEdit,"mcp__*" \
-  --output-format json --json-schema "$(cat ledger.schema.json)"   # ledger in .structured_output
+  --setting-sources user --settings '{"outputStyle":"Concise"}' --strict-mcp-config --mcp-config '{"mcpServers":{}}' \
+  --permission-mode dontAsk --tools Read,Bash,Agent --max-turns 80 \
+  --output-format json --json-schema "$(cat ledger.schema.json)" \
+  --append-system-prompt "<base branch's CLAUDE.md or AGENTS.md, imports expanded>"
 ```
+
+`--setting-sources user` keeps a PR's `env` and `apiKeyHelper` from running,
+and drops its `CLAUDE.md`; the project memory comes back from the base
+branch instead, so a PR can't rewrite its reviewer's rules.
 
 Reviewers get `Execution: off`, as with `--no-exec`. `dontAsk` denies reads
 outside the checkout, so on the runner:
@@ -81,6 +87,7 @@ of the editor's model and the floor; smart drops a Small, plain change to
 | `momayezi_reviewer_model` | `opus` | Floor (`sonnet`, `opus`, `fable`), or `floor>escalate` such as `sonnet>opus`. |
 | `momayezi_reviewer_effort` | empty | Reviewer and verifier effort, or `base>escalated` such as `medium>xhigh`; empty keeps the agent's `high`. |
 | `momayezi_queue_timeout` | empty | Seconds a remote review may sit queued; empty: the whole remote timeout. |
+| `momayezi_limit_wait_max` | `0` | Seconds a remote loop may sleep for a usage limit to reset; 0 stops at once. |
 | `momayezi_max_rounds` | `3` | Round cap; the capped round reviews at full scope. |
 | `momayezi_max_reviewers` | `2` | Most lenses auto-picked per round, and most reviewers at once. |
 | `momayezi_smart` | `off` | `on` sizes every run like `--smart`; `--no-smart` turns it off per run. |

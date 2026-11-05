@@ -13,7 +13,7 @@ from typing import Any
 
 from . import ledger as ledgers
 from . import net
-from .protocol import ARTIFACT, CHECK_RUN, FINDING_MARKER, REVIEWER_MARKER
+from .protocol import ARTIFACT, CHECK_RUN, FINDING_MARKER, LEDGER_KEY, REVIEWER_MARKER
 
 Runner = Callable[[list[str], str | None], str]
 
@@ -118,18 +118,24 @@ class Gh:
         path = f'repos/{{repo}}/actions/workflows/{workflow}/runs?event=workflow_dispatch&per_page=50'
         return sorted(self.api(path)['workflow_runs'], key=lambda r: r['id'], reverse=True)
 
-    def artifact_ledger(self, run_id: int) -> ledgers.Ledger | None:
-        """The ledger a run left in its momayez-ledger artifact; None when it left none."""
-        names = {a['name'] for a in self.api(f'repos/{{repo}}/actions/runs/{run_id}/artifacts')['artifacts']}
+    def artifact_file(self, run_id: int, name: str) -> str | None:
+        """A file the run left in its momayez-ledger artifact; None when it left none."""
+        listed = self.api(f'repos/{{repo}}/actions/runs/{run_id}/artifacts') or {}
+        names = {a['name'] for a in listed.get('artifacts') or []}
         if ARTIFACT not in names:
             return None
         with tempfile.TemporaryDirectory() as where:
             self.run(['run', 'download', str(run_id), '--repo', self.repo, '-n', ARTIFACT, '-D', where], None)
-            path = os.path.join(where, 'ledger.json')
+            path = os.path.join(where, name)
             if not os.path.isfile(path):
                 return None
             with open(path, encoding='utf-8') as handle:
-                return ledgers.loads(handle.read())
+                return handle.read()
+
+    def artifact_ledger(self, run_id: int) -> ledgers.Ledger | None:
+        """The ledger a run left in its momayez-ledger artifact; None when it left none."""
+        text = self.artifact_file(run_id, LEDGER_KEY)
+        return None if text is None else ledgers.loads(text)
 
     def comments(self, pr: int) -> list[dict[str, Any]]:
         return self.api(f'repos/{{repo}}/issues/{pr}/comments?per_page=100', pages=True)

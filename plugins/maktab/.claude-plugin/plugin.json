@@ -61,6 +61,12 @@
       "description": "Seconds a remote review may sit queued, with no runner on it, before the waiter reports 'no runner picked it up'. Empty: the whole --remote-timeout.",
       "default": ""
     },
+    "momayezi_limit_wait_max": {
+      "type": "string",
+      "title": "momayezi · Wait out a usage limit",
+      "description": "Most seconds a remote loop sleeps for the reviewer's usage limit to reset before requesting again. 0 or empty: stop at once, saying when it resets.",
+      "default": "0"
+    },
     "momayezi_max_rounds": {
       "type": "string",
       "title": "momayezi · Max rounds",

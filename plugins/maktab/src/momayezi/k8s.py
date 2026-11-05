@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from . import failure as failures
 from . import ledger as ledgers
 from . import net
 from . import poll
@@ -183,9 +184,11 @@ class K8sJob:
         kind, why = state(job)
         if kind == 'running':
             return self.progress(base, name, job)
-        if kind == 'Failed':
-            return failed(f'Job {name} failed: {why}' if why else f'Job {name} failed')
         pods = self.kubectl.json('get', 'pods', '-l', f'batch.kubernetes.io/job-name={name}')['items']
+        if kind == 'Failed':
+            told = failures.from_text(self.kubectl('logs', max(pods, key=created_at)['metadata']['name'],
+                                                   '--tail=50')) if pods else None
+            return {**failed(f'Job {name} failed: {why}' if why else f'Job {name} failed'), **(told or {})}
         done = [p for p in pods if (p.get('status') or {}).get('phase') == 'Succeeded']
         if not done:
             return failed(f'Job {name} left no succeeded pod to read')
@@ -196,7 +199,7 @@ class K8sJob:
             return failed(f'Job {name} printed an invalid ledger: {exc}')
         if found is None:
             return failed(f'Job {name} printed no ledger')
-        if found['target']['head_sha'] != head:
+        if not poll.reviewed(found, head):
             return failed(f'Job {name} reviewed {found["target"]["head_sha"]}, not {head}')
         return {**base, 'status': 'done', 'verdict': found['verdict'], 'ledger': found}
 

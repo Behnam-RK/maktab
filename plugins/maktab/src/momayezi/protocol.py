@@ -10,6 +10,11 @@ EDITOR_MARKER = 'momayezi-editor-ledger:v2'
 # A new loop's round 1: the PR's review history is not its prior.
 EDITOR_RESET = f'<!-- {EDITOR_MARKER} null -->'
 FINDING_MARKER = 'momayez-finding:'
+# A review that left no ledger says why: `<!-- momayezi-error: {json} -->` in a check run's text,
+# the same line (unwrapped) last in a pod log, or ERROR_FILE beside ledger.json in the artifact.
+ERROR_MARKER = 'momayezi-error:'
+ERROR_FILE = 'error.json'
+FAILURES = ('failed', 'limited')
 
 # GitHub's limit on a check run's output.text and on a comment body. Measured in
 # UTF-8 bytes, which is never fewer than GitHub's own count.

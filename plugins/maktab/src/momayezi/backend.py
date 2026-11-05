@@ -13,12 +13,13 @@ import shlex
 from collections.abc import Callable
 from typing import Any, Protocol
 
+from . import failure as failures
 from . import ledger as ledgers
 from . import poll
 from .config import Settings
 from .github import Gh, GhError, Target, run_ledger
 from .k8s import K8sJob, Kubectl
-from .protocol import DISPATCH_CAP, DISPATCH_INPUTS, EDITOR_MARKER, LABEL, RUN_NAME, WORKFLOW
+from .protocol import DISPATCH_CAP, DISPATCH_INPUTS, EDITOR_MARKER, ERROR_FILE, LABEL, RUN_NAME, WORKFLOW
 
 Handle = dict[str, Any]
 Result = dict[str, Any]
@@ -108,8 +109,12 @@ class GhDispatch:
             return poll.pending({**target.meta(), 'head_sha': head}, 'queued', since)
         base = {**target.meta(), 'head_sha': head, 'url': run.get('html_url', '')}
         if run.get('conclusion') != 'success':
-            return {**base, 'status': 'failed', 'conclusion': run.get('conclusion'),
-                    'reason': f'the review run ended {run.get("conclusion")}'}
+            try:
+                why = failures.loads(self.gh.artifact_file(int(handle['run_id']), ERROR_FILE))
+            except GhError:  # the run's own word is a bonus; its conclusion still stands
+                why = None
+            return {**base, 'status': 'failed', 'reason': f'the review run ended {run.get("conclusion")}',
+                    **(why or {}), 'conclusion': run.get('conclusion')}
         if handle.get('post'):
             return poll.check(self.gh, target, head, set(handle.get('known') or ()), handle.get('requested_at', ''))
         try:
@@ -118,7 +123,7 @@ class GhDispatch:
             return {**base, 'status': 'failed', 'reason': f'the review run left an invalid ledger: {exc}'}
         if found is None:
             return {**base, 'status': 'failed', 'reason': 'the review run left no ledger'}
-        if found['target']['head_sha'] != head:
+        if not poll.reviewed(found, head):
             return {**base, 'status': 'failed',
                     'reason': f'the run reviewed {found["target"]["head_sha"]}, not {head}'}
         return {**base, 'status': 'done', 'verdict': found['verdict'], 'ledger': found}

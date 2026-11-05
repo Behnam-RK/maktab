@@ -44,7 +44,11 @@ stay as in SKILL.md. Only how a round gets its findings changes.
 4. **Timeout or failure**: if the status is `timeout` or `failed`, request
    again. After a second one, stop with `stopping: remote unavailable`. A
    `timeout` with `phase: queued` is reported as `no runner picked it up`
-   (plus its `reason`), not as reviewer trouble.
+   (plus its `reason`), not as reviewer trouble. `limited` (a usage limit)
+   never counts: if its `resets_at` is within
+   `${user_config.momayezi_limit_wait_max}` seconds (0 if blank), wait until
+   then (`sleep` with Bash `run_in_background`) and request again; otherwise stop with
+   `stopping: remote limited until <resets_at>`.
 5. **Merge**: load the returned ledger and merge it by id (ledger.md). Decide
    each new or re-raised finding as in SKILL.md step 4, then run the gate
    (step 5). For every `wont-fix` and `disputed`, post the reason with

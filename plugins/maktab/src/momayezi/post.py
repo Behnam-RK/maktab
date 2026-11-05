@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import failure as failures
 from . import ledger as ledgers
 from .github import Gh, GhError, Target
 from .protocol import CHECK_RUN, FINDING_MARKER, REVIEWER_MARKER
@@ -65,20 +66,35 @@ def summary(ledger: ledgers.Ledger) -> str:
     return '\n'.join(lines)[:60000]
 
 
+def finish(gh: Gh, head: str, body: dict[str, Any]) -> None:
+    """Complete the `momayez` check run on `head`: the one the workflow opened as in progress,
+    finished in place rather than doubled, else a new one."""
+    open_runs = [r for r in gh.runs(head) if r.get('status') != 'completed']
+    if open_runs:
+        gh.api(f'repos/{{repo}}/check-runs/{open_runs[0]["id"]}', 'PATCH', body)
+    else:
+        gh.api('repos/{repo}/check-runs', 'POST', dict(body, name=CHECK_RUN, head_sha=head))
+
+
 def check_run(gh: Gh, ledger: ledgers.Ledger) -> None:
-    head = ledger['target']['head_sha']
     output = {
         'title': f'momayez: {ledger["verdict"]}',
         'summary': summary(ledger),
         'text': ledgers.to_marker(ledger, REVIEWER_MARKER),
     }
     body = {'status': 'completed', 'conclusion': 'neutral', 'output': output}
-    # A run the workflow opened as in-progress is finished in place, not doubled.
-    open_runs = [r for r in gh.runs(head) if r.get('status') != 'completed']
-    if open_runs:
-        gh.api(f'repos/{{repo}}/check-runs/{open_runs[0]["id"]}', 'PATCH', body)
-    else:
-        gh.api('repos/{repo}/check-runs', 'POST', dict(body, name=CHECK_RUN, head_sha=head))
+    finish(gh, ledger['target']['head_sha'], body)
+    # A rebased head's review also lands on the head that was requested, where waiters look.
+    if ledger['target'].get('rebased_from'):
+        finish(gh, ledger['target']['rebased_from'], body)
+
+
+def error_run(gh: Gh, head: str, why: failures.Failure) -> str:
+    """A review that left no ledger, posted as a failed `momayez` check run that says why."""
+    told = why['reason'] + (f' (resets {why["resets_at"]})' if 'resets_at' in why else '')
+    finish(gh, head, {'status': 'completed', 'conclusion': 'failure', 'output': {
+        'title': f'momayez: {why["status"]}', 'summary': told[:60000], 'text': f'<!-- {failures.line(why)} -->'}})
+    return why['status']
 
 
 def inline(finding: dict[str, Any]) -> dict[str, Any]:

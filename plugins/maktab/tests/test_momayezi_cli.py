@@ -74,7 +74,7 @@ def test_wait_rejects_a_bad_handle(handle, capsys):
 def test_review_prints_the_ledger_marker(monkeypatch, tmp_path, capsys):
     seen = []
 
-    def fake_review(gh, target, head, prior, workdir):
+    def fake_review(gh, target, head, prior, workdir, follow_rebase, memory):
         seen.append((gh.repo, target, head, prior, workdir))
         return sample()
     monkeypatch.setattr(review, 'review', fake_review)
@@ -88,7 +88,7 @@ def test_review_prints_the_ledger_marker(monkeypatch, tmp_path, capsys):
 
 
 def test_review_failures_exit_1(monkeypatch, capsys):
-    def broken(*a):
+    def broken(*a, **k):
         raise review.ReviewError('#4 comes from a fork: no review')
     monkeypatch.setattr(review, 'review', broken)
     assert cli.main(['review', '--repo', REPO, '--pr', '4', '--head', HEAD]) == 1
@@ -130,3 +130,44 @@ def test_the_bin_shim_runs_the_plugin_source(tmp_path):
     done = subprocess.run([str(PLUGIN / 'bin' / 'momayezi-wait'), '--help'],
                           capture_output=True, text=True, env=env, timeout=30)
     assert done.returncode == 0 and 'head_sha' in done.stdout
+
+
+def test_review_out_writes_the_ledger_or_the_failure(monkeypatch, tmp_path, capsys):
+    seen = {}
+
+    def fake_review(gh, target, head, prior, workdir, follow_rebase, memory):
+        seen.update(follow=follow_rebase, memory=memory)
+        return sample()
+    monkeypatch.setattr(review, 'review', fake_review)
+    out = tmp_path / 'out'
+    assert cli.main(['review', '--repo', REPO, '--pr', '4', '--head', HEAD, '--workdir', str(tmp_path),
+                     '--out', str(out), '--follow-rebase', '--no-project-memory']) == 0
+    assert ledgers.loads((out / 'ledger.json').read_text()) == sample()
+    assert seen == {'follow': True, 'memory': False}
+    capsys.readouterr()
+
+    def limited(*a, **k):
+        raise review.ReviewError('the review returned no ledger: limit',
+                                 {'status': 'limited', 'reason': 'hit', 'resets_at': '2026-11-05T15:00:00Z'})
+    monkeypatch.setattr(review, 'review', limited)
+    assert cli.main(['review', '--repo', REPO, '--pr', '4', '--head', HEAD, '--out', str(out)]) == 1
+    error = json.loads((out / 'error.json').read_text())
+    assert error == {'status': 'limited', 'reason': 'hit', 'resets_at': '2026-11-05T15:00:00Z'}
+    assert capsys.readouterr().out.strip() == 'momayezi-error: ' + json.dumps(error, sort_keys=True, separators=(',', ':'))
+
+    def gone(*a, **k):
+        raise github.GhError('HTTP 404')
+    monkeypatch.setattr(review, 'review', gone)
+    assert cli.main(['review', '--repo', REPO, '--pr', '4', '--head', HEAD]) == 1
+    assert '"reason":"HTTP 404","status":"failed"' in capsys.readouterr().out
+
+
+def test_post_error_posts_a_failed_check_run(fake, tmp_path, capsys):
+    fake.routes[('GET', runs_path())] = {'check_runs': []}
+    path = tmp_path / 'error.json'
+    path.write_text('{"status": "failed", "reason": "crashed"}', encoding='utf-8')
+    assert cli.main(['post', '4', '--error', str(path), '--head', HEAD]) == 0
+    assert capsys.readouterr().out.strip() == 'failed'
+    path.write_text('{}', encoding='utf-8')
+    assert cli.main(['post', '4', '--error', str(path), '--head', HEAD]) == 1
+    assert '--error needs a valid error.json and --head' in capsys.readouterr().err

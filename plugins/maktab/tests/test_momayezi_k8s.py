@@ -208,9 +208,10 @@ def test_check_reads_the_newest_succeeded_pod():
 
 @pytest.mark.parametrize('routes, reason', [
     ({('get', 'job'): NOT_FOUND}, 'is gone'),
-    ({('get', 'job'): job([{'type': 'Failed', 'status': 'True', 'message': 'BackoffLimitExceeded'}])},
-     'failed: BackoffLimitExceeded'),
-    ({('get', 'job'): job([{'type': 'Failed', 'status': 'True'}])}, f'Job {NAME} failed'),
+    ({('get', 'job'): job([{'type': 'Failed', 'status': 'True', 'message': 'BackoffLimitExceeded'}]),
+      ('get', 'pods'): {'items': []}}, 'failed: BackoffLimitExceeded'),
+    ({('get', 'job'): job([{'type': 'Failed', 'status': 'True'}]), ('get', 'pods'): {'items': [pod('a', 'Failed')]},
+      ('logs', 'a'): 'crashed'}, f'Job {NAME} failed'),
     ({('get', 'job'): job([COMPLETE]), ('get', 'pods'): {'items': [pod('a', 'Failed')]}}, 'no succeeded pod'),
     ({('get', 'job'): job([COMPLETE]), ('get', 'pods'): {'items': [pod('a')]},
       ('logs', 'a'): f'<!-- {REVIEWER_MARKER} {{}} -->'}, 'invalid ledger'),
@@ -239,6 +240,22 @@ def test_a_running_job_says_queued_until_its_pod_is_placed():
     runner.routes[('get', 'pods')] = {'items': [started]}
     got = kube.check(HANDLE)
     assert got['phase'] == 'running' and got['queued_for'] == 3600 and got['ran_for'] == 3600
+
+
+def test_a_failed_job_says_why_from_its_pod_log():
+    limited = 'momayezi-error: {"reason":"hit your limit","resets_at":"2026-11-05T15:00:00Z","status":"limited"}'
+    kube, runner = backend({('get', 'job'): job([{'type': 'Failed', 'status': 'True'}]),
+                            ('get', 'pods'): {'items': [pod('a', 'Failed')]}, ('logs', 'a'): 'cloning\n' + limited})
+    got = kube.check(HANDLE)
+    assert got['status'] == 'limited' and got['reason'] == 'hit your limit' and got['resets_at'].startswith('2026')
+    assert runner.calls[-1][0][-2:] == ['a', '--tail=50']
+
+
+def test_a_rebased_review_is_the_review_of_the_requested_head():
+    moved = dict(sample(), target=dict(sample()['target'], head_sha='d' * 40, rebased_from=HEAD))
+    kube, _ = backend({('get', 'job'): job([COMPLETE]), ('get', 'pods'): {'items': [pod('a')]},
+                       ('logs', 'a'): marker(moved)})
+    assert kube.check(HANDLE)['status'] == 'done'
 
 
 def test_status_finds_the_newest_job_for_the_target():

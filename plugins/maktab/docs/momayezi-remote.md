@@ -66,7 +66,7 @@ always takes `[k8s]` from it.
   `pods/log`, get.
 - The container runs
   `momayezi-review --repo ${repo} ${target_flag} "${target}" --head ${head}
-  --ledger-file <mounted ledger.json>`. The image needs `git`, `gh`, and
+  --ledger-file <mounted ledger.json>` (add `--follow-rebase` to taste). The image needs `git`, `gh`, and
   `claude` with the maktab plugin enabled in user settings, which must also
   allow `Read(~/.claude/plugins/cache/maktab/**)` (the session runs with
   `--setting-sources user` and `dontAsk`; see Review-only in momayezi.md). The pod needs `CLAUDE_CODE_OAUTH_TOKEN` and
