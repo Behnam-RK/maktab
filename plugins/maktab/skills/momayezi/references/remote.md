@@ -15,7 +15,8 @@ stay as in SKILL.md. Only how a round gets its findings changes.
   `AGENTS.md` and memory (for example, rebase before push). If there are none
   and the branch is shared, ask first.
 - **Lenses and model**: the remote run picks them by the same rules, with
-  defaults only. Announce what it will pick.
+  the runner's own model, effort and size-ignore settings, which you can't
+  see. Announce the lenses only; the model comes back in the ledger.
 - **Tools**: the `momayez` MCP server's `request_review`, `review_status` and
   `reply_to_finding`. If they are missing, the server failed to start: say so
   and stop. A tool error about the backend or `.momayez.toml` is a setup
@@ -37,18 +38,19 @@ stay as in SKILL.md. Only how a round gets its findings changes.
    the new `head_sha` and a `wait` command.
 3. **Wait**: run that command with Bash `run_in_background`, adding
    `--timeout <remote-timeout>` (default 1200) and, when
-   `${user_config.momayezi_queue_timeout}` is set, `--queue-timeout` with it. Go on with whichever arrives
-   first: the waiter's line, or a `<channel source="plugin:maktab:momayez">`
+   `${user_config.momayezi_queue_timeout}` is set, `--queue-timeout` with
+   it. Go on with whichever arrives first: the waiter's line, or a `<channel source="plugin:maktab:momayez">`
    event for the same `head_sha`. Ignore the other, and stop the waiter if it
    is still running.
 4. **Timeout or failure**: if the status is `timeout` or `failed`, request
    again. After a second one, stop with `stopping: remote unavailable`. A
    `timeout` with `phase: queued` is reported as `no runner picked it up`
-   (plus its `reason`), not as reviewer trouble. `limited` (a usage limit)
-   never counts: if its `resets_at` is within
+   (plus its `reason`), not as reviewer trouble.
+   `limited` (a usage limit) never counts: if its `resets_at` is within
    `${user_config.momayezi_limit_wait_max}` seconds (0 if blank), wait until
-   then (`sleep` with Bash `run_in_background`) and request again; otherwise stop with
-   `stopping: remote limited until <resets_at>`.
+   then (a background `sleep`) and request again; otherwise
+   stop with `stopping: remote limited until <resets_at>`, or, with no
+   `resets_at`, `stopping: remote limited` and its `reason`.
 5. **Merge**: load the returned ledger and merge it by id (ledger.md). Decide
    each new or re-raised finding as in SKILL.md step 4, then run the gate
    (step 5). For every `wont-fix` and `disputed`, post the reason with

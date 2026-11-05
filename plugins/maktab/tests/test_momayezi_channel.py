@@ -88,7 +88,7 @@ def test_request_review_on_a_pr_posts_the_editor_ledger_and_presses_the_label(no
                                ('GET', f'repos/{REPO}/issues/4/comments?per_page=100'): [[]]})
     got, error = call(srv, out, 'request_review', {'pr': 4, 'ledger': sample()})
     assert not error and got == {'status': 'requested', 'pr': '4', 'head_sha': HEAD, 'backend': 'gh-label',
-                                 'wait': f'momayezi-wait 4 {HEAD} --known 1,3'}
+                                 'wait': f'momayezi-wait 4 {HEAD} --known 1,3 --since 2026-11-05T12:00:00Z'}
     (comment,) = runner.sent('POST', f'repos/{REPO}/issues/4/comments')
     assert ledgers.from_marker(comment['body'], EDITOR_MARKER) == sample()
     assert runner.sent('POST', f'repos/{REPO}/issues/4/labels') == [{'labels': ['review']}]
@@ -98,7 +98,7 @@ def test_request_review_on_a_branch_dispatches_the_workflow(no_thread):
     srv, out, runner = server({('GET', f'repos/{REPO}/commits/feat'): {'sha': HEAD},
                                ('GET', runs_path()): {'check_runs': []}})
     got, error = call(srv, out, 'request_review', {'ref': 'feat', 'ledger': ledgers.dumps(sample())})
-    assert not error and got['wait'] == f'momayezi-wait feat {HEAD}'
+    assert not error and got['wait'] == f'momayezi-wait feat {HEAD} --since 2026-11-05T12:00:00Z'
     argv = runner.calls[-1][2]
     assert argv[:5] == ['workflow', 'run', 'momayez.yaml', '--repo', REPO]
     assert argv[6] == 'ref=feat' and ledgers.loads(argv[8].removeprefix('ledger=')) == sample()
@@ -376,3 +376,18 @@ def test_the_poller_remembers_a_delivered_ledger():
     srv.pending[(REPO, HEAD)] = {'backend': Stub(results=[done]), 'handle': {}, 'post': False, 'since': srv.clock()}
     srv.poll_once()
     assert srv.delivered == {(REPO, '#4'): sample()}
+
+
+def test_a_result_another_thread_already_took_is_not_delivered_twice():
+    done = {'pr': '4', 'head_sha': HEAD, 'status': 'done', 'verdict': 'findings', 'ledger': sample()}
+    srv, out, _ = server()
+    entry = {'backend': Stub(results=[done]), 'handle': {}, 'post': False, 'since': srv.clock()}
+    srv.pending[(REPO, HEAD)] = entry
+
+    class Racing(Stub):
+        def check(self, handle):
+            srv.pending.clear()  # the other thread delivered it meanwhile
+            return done
+    entry['backend'] = Racing()
+    srv.poll_once()
+    assert out.messages() == []

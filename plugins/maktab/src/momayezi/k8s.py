@@ -186,8 +186,13 @@ class K8sJob:
             return self.progress(base, name, job)
         pods = self.kubectl.json('get', 'pods', '-l', f'batch.kubernetes.io/job-name={name}')['items']
         if kind == 'Failed':
-            told = failures.from_text(self.kubectl('logs', max(pods, key=created_at)['metadata']['name'],
-                                                   '--tail=50')) if pods else None
+            told = None
+            try:  # the pod's own word is a bonus; the Job's failure stands without it
+                if pods:
+                    told = failures.from_text(self.kubectl('logs', max(pods, key=created_at)['metadata']['name'],
+                                                           '--tail=50'))
+            except KubeError:
+                pass
             return {**failed(f'Job {name} failed: {why}' if why else f'Job {name} failed'), **(told or {})}
         done = [p for p in pods if (p.get('status') or {}).get('phase') == 'Succeeded']
         if not done:

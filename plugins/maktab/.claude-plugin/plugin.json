@@ -51,7 +51,7 @@
     "momayezi_reviewer_effort": {
       "type": "string",
       "title": "momayezi · Reviewer effort",
-      "description": "Effort for reviewer and verifier spawns; empty keeps the reviewer agent's own (high). base>escalated (e.g. medium>xhigh) escalates like the model setting.",
+      "description": "Effort for reviewer and verifier spawns; empty keeps the reviewer agent's own (high). base>escalated (e.g. medium>xhigh) escalates like the model setting. Needs Claude Code 2.1.292+; CLAUDE_CODE_EFFORT_LEVEL overrides it.",
       "default": "",
       "options": ["", "low", "medium", "high", "xhigh", "medium>high", "medium>xhigh", "high>xhigh"]
     },

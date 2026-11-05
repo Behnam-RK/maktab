@@ -43,6 +43,7 @@ def _parser() -> argparse.ArgumentParser:
     wait.add_argument('head_sha')
     wait.add_argument('--known', type=_ids, default=set(), help='check-run ids to ignore, comma-separated')
     wait.add_argument('--handle', type=_handle, help="the backend's handle from request_review's wait hint")
+    wait.add_argument('--since', help='when the review was requested, ISO (gh-label; default: now)')
     wait.add_argument('--timeout', type=float, default=WAIT_TIMEOUT, help='seconds (default %(default)s)')
     wait.add_argument('--queue-timeout', type=float,
                       help='give up after this many seconds queued, before any runner took it (default: --timeout)')
@@ -64,9 +65,9 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _wait(args: argparse.Namespace) -> dict:
-    # gh-label's hint carries no handle: its queue clock starts with the waiter.
+    # gh-label's hint carries no handle, but --since: the press, not the waiter, starts its clock.
     handle = args.handle or {'backend': 'gh-label', **args.target.meta(), 'head_sha': args.head_sha,
-                             'known': sorted(args.known), 'requested_at': poll.iso()}
+                             'known': sorted(args.known), 'requested_at': args.since or poll.iso()}
     return poll.wait(backends.revive(handle, lambda: Gh.here(args.repo)), handle, args.timeout,
                      args.queue_timeout)
 

@@ -11,10 +11,12 @@ and remote findings agree.
 
 ## Flags only
 
-Ignore every value substituted from user config: a teammate's `/config` must
-not change a CI run. Each setting is its flag, else the built-in default
-SKILL.md names in parentheses (an `opus` floor, 2 reviewers). Smart sizing is
-always on.
+Ignore every value substituted from user config, except
+`momayezi_reviewer_model`, `momayezi_reviewer_effort` and
+`momayezi_size_ignore`: the runner's own user settings, which the host sets
+(`momayezi-review` loads no project or local settings). Each other setting
+is its flag, else the built-in default SKILL.md names in parentheses (2
+reviewers). Smart sizing is always on.
 
 Execution is off. Every reviewer prompt carries `Execution: off`. Your own
 Bash is limited to `rg`, `git diff|log|show|blame|ls-files|check-attr`, `ls` and `wc`, run
@@ -34,7 +36,7 @@ subagents are `maktab:momayez` reviewers.
 3. **Ledger**: load `--ledger` per [ledger.md](ledger.md). Its `wont-fix` and
    `disputed` reasons stand, as in round 2 and later of the loop. `round` is
    its round + 1, else 1.
-4. **Model**: SKILL.md Setup step 5, defaults only.
+4. **Model and effort**: SKILL.md Setup step 5, escalation included.
 5. **Scope**:
    - No ledger: the full target.
    - With a ledger: `git diff <ledger head_sha> <head> -- <target paths>`,

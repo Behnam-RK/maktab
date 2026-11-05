@@ -37,7 +37,7 @@ plans and specs work too.
 
 ## Smart
 
-`--smart` sizes the review from `git diff --shortstat` and untracked files,
+`--smart` sizes the review from `git diff --numstat` and untracked files,
 without reading the diff, and without counting generated or lock files: a
 four-tier table sets reviewers and rounds, and a
 path matching the `security` rule bumps one tier. A small, mechanical change
@@ -48,7 +48,8 @@ announcement and ledger notes say why. Explicit flags win; tiers live in
 
 ## Review-only
 
-One review round, no edits, flags only (never your `/config`), smart on.
+One review round, no edits, smart on. Flags only, but for the runner's
+reviewer model, effort and size-ignore settings.
 A prior `--ledger` narrows it to the diff since that ledger's head plus
 uncited files. Every backend runs it through `momayezi-review`
 ([momayezi-protocol.md](momayezi-protocol.md)), which clones the head and calls:
@@ -69,6 +70,9 @@ Reviewers get `Execution: off`, as with `--no-exec`. `dontAsk` denies reads
 outside the checkout, so on the runner:
 
 - user or managed settings must allow `Read(~/.claude/plugins/cache/maktab/**)`
+  and the reviewer's Bash: `Bash(rg *)`, `Bash(git diff *)`, `Bash(git log *)`,
+  `Bash(git show *)`, `Bash(git blame *)`, `Bash(git ls-files *)`,
+  `Bash(git check-attr *)`, `Bash(ls *)`, `Bash(wc *)`
   (an untrusted workspace's project settings are ignored);
 - write `--ledger` and `--intent` inside the checkout.
 
@@ -79,14 +83,15 @@ outside the checkout, so on the runner:
 
 ## Config
 
-Set in `/config` or when enabling the plugin. Reviewers run on the stronger
+Set in `/config` or when enabling the plugin. `CLAUDE_CODE_EFFORT_LEVEL`, if
+set, overrides every effort. Reviewers run on the stronger
 of the editor's model and the floor; smart drops a Small, plain change to
 `sonnet` and escalates a heavy one; `--model` beats all.
 
 | Option | Default | |
 |---|---|---|
 | `momayezi_reviewer_model` | `opus` | Floor (`sonnet`, `opus`, `fable`), or `floor>escalate` such as `sonnet>opus`. |
-| `momayezi_reviewer_effort` | empty | Reviewer and verifier effort, or `base>escalated` such as `medium>xhigh`; empty keeps the agent's `high`. |
+| `momayezi_reviewer_effort` | empty | Effort, or `base>escalated` such as `medium>xhigh`; empty: `high`. Claude Code ≥ 2.1.292. |
 | `momayezi_queue_timeout` | empty | Seconds a remote review may sit queued; empty: the whole remote timeout. |
 | `momayezi_limit_wait_max` | `0` | Seconds a remote loop may sleep for a usage limit to reset; 0 stops at once. |
 | `momayezi_size_ignore` | empty | Comma-separated globs smart sizing doesn't count, beside generated files and lock files. |

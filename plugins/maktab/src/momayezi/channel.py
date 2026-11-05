@@ -170,9 +170,12 @@ class Server:
         """The reviewer ledger a lean editor ledger is filled from: the last one this session
         delivered for the target, else the PR's newest one when the PR carries them."""
         key = (self.gh.repo, target.label)
-        if key not in self.delivered and any(repo == self.gh.repo for repo, _ in self.pending):
+        with self.lock:
+            waiting = any(repo == self.gh.repo for repo, _ in self.pending)
+        if key not in self.delivered and waiting:
             self.poll_once()  # the poller may not have caught up with a review that landed
-        found = self.delivered.get(key)
+        with self.lock:
+            found = self.delivered.get(key)
         if found is None and target.pr and settings.pr_comments == 'all':
             found = prior.from_pr(self.gh, target.pr)
         return found
@@ -206,18 +209,23 @@ class Server:
                 self.poller.start()
 
     def poll_once(self) -> None:
-        for key, entry in list(self.pending.items()):
+        with self.lock:
+            entries = list(self.pending.items())
+        for key, entry in entries:
             if self.clock() - entry['since'] > PENDING_TTL:
-                self.pending.pop(key, None)
+                with self.lock:
+                    self.pending.pop(key, None)
                 continue
             try:
                 result = entry['backend'].check(entry['handle'])
             except Exception:  # a transient gh or kubectl failure; the next poll retries
                 continue
             if result['status'] != 'pending':
-                self.pending.pop(key, None)
-                if 'ledger' in result:
-                    self.delivered[(key[0], Target.from_meta(result).label)] = result['ledger']
+                with self.lock:  # the poller and a request thread may both see it land: one delivers
+                    if self.pending.pop(key, None) is None:
+                        continue
+                    if 'ledger' in result:
+                        self.delivered[(key[0], Target.from_meta(result).label)] = result['ledger']
                 if entry['post'] and result['status'] == 'done':
                     self.publish(result)
                 self.emit(result)

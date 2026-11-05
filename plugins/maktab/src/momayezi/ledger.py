@@ -125,7 +125,7 @@ def complete_editor(raw: Any, last: Callable[[], Ledger | None]) -> Ledger:
     for item in raw['findings']:
         ident = item.get('id') if isinstance(item, dict) else None
         if ident not in prior:
-            raise LedgerError(f'{ident} is not in the last remote ledger: send its full finding')
+            raise LedgerError(f'{ident} is not in the last remote ledger: send the full editor ledger')
         findings.append({**prior[ident], **item})
     out = {'version': found['version'], **{k: copy.deepcopy(found[k]) for k in HEADER}, **raw}
     if 'last_id' in found and 'last_id' not in raw:  # a truncated ledger's dropped ids stay issued

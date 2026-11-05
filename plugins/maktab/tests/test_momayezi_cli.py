@@ -164,7 +164,11 @@ def test_review_out_writes_the_ledger_or_the_failure(monkeypatch, tmp_path, caps
 
 def test_a_label_wait_times_out_on_a_review_no_runner_took(fake, capsys):
     fake.routes[('GET', runs_path())] = {'check_runs': []}
-    assert cli.main(['wait', '4', HEAD, '--queue-timeout', '0', '--timeout', '5']) == 0
+    fake.routes[('GET', f'repos/{REPO}/actions/workflows/momayez.yaml/runs?head_sha={HEAD}&per_page=5')] = {
+        'workflow_runs': [{'status': 'queued', 'created_at': '2026-11-05T11:59:50Z'}]}
+    # The label press made the run before the waiter started: --since dates the request.
+    assert cli.main(['wait', '4', HEAD, '--since', '2026-11-05T11:59:55Z', '--queue-timeout', '0',
+                     '--timeout', '5']) == 0
     got = json.loads(capsys.readouterr().out)
     assert got['status'] == 'timeout' and got['phase'] == 'queued'
 

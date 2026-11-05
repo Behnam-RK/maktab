@@ -165,5 +165,6 @@ def wait_hint(target: Target, head: str, handle: Handle) -> str:
     command = f'momayezi-wait {shlex.quote(str(target.pr or target.ref))} {head}'
     if handle['backend'] == 'gh-label':
         known = ','.join(str(i) for i in handle['known'])
-        return command + (f' --known {known}' if known else '')
+        since = handle.get('requested_at')
+        return command + (f' --known {known}' if known else '') + (f' --since {since}' if since else '')
     return f'{command} --handle {shlex.quote(json.dumps(handle, separators=(",", ":")))}'

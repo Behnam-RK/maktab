@@ -14,14 +14,16 @@ from typing import TypeVar
 
 T = TypeVar('T')
 
-# Failures before any response: the request never reached the server.
-UNSENT = re.compile(r'TLS handshake timeout|connection reset by peer|connection refused', re.I)
-GATEWAY = re.compile(r'HTTP 50[234]\b')
+# Failures before the request went out (a reset while reading the answer is not one).
+UNSENT = re.compile(r'TLS handshake timeout|connection refused|(?<!read: )connection reset by peer', re.I)
+RESET = re.compile(r'connection reset by peer', re.I)
+# gh says `HTTP 503`; kubectl says `Error from server (ServiceUnavailable)` and the like.
+GATEWAY = re.compile(r'HTTP 50[234]\b|\((?:ServiceUnavailable|Timeout)\)|Bad Gateway|Gateway Time-?out', re.I)
 DELAYS = (1.0, 2.0, 4.0)
 
 
 def transient(message: str, idempotent: bool) -> bool:
-    return bool(UNSENT.search(message) or (idempotent and GATEWAY.search(message)))
+    return bool(UNSENT.search(message) or (idempotent and (GATEWAY.search(message) or RESET.search(message))))
 
 
 def retrying(call: Callable[[], T], idempotent: bool, sleep: Callable[[float], None] | None = None) -> T:

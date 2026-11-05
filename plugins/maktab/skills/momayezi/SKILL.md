@@ -33,11 +33,11 @@ Arguments: `$ARGUMENTS`
 4. **Lenses.** By changed paths, per "Picking" in
    [references/lenses.md](references/lenses.md), capped at `--max-reviewers`,
    else `${user_config.momayezi_max_reviewers}` (2 if blank or unsubstituted).
-5. **Model and effort.** `sonnet < opus < fable`: the stronger of yours
-   and the floor `${user_config.momayezi_reviewer_model}` (`opus` if
-   blank). Effort: `${user_config.momayezi_reviewer_effort}`, none if blank.
-   A `base>escalated` pair means base, unless smart escalates (smart.md).
-   `--model` wins. Pass both to every reviewer and verifier spawn.
+5. **Model and effort.** `sonnet < opus < fable`: stronger of yours and
+   the floor `${user_config.momayezi_reviewer_model}` (`opus` if unset:
+   blank or unsubstituted). Effort: `${user_config.momayezi_reviewer_effort}`,
+   none if unset. A pair is its base unless smart escalates (smart.md);
+   `--model` wins. Pass both on each reviewer and verifier spawn.
 6. **Cap.** `--max-rounds`, else `${user_config.momayezi_max_rounds}` (3 if blank or
    unsubstituted).
 7. **Gate** (code only). Find it per [references/gate.md](references/gate.md).
@@ -68,8 +68,8 @@ Reviewer: local | remote (commits and pushes each round to <branch>)
    a `wont-fix` re-raised without new evidence is dropped. New findings get
    the next ledger id (`F1`, `F2`, …).
 3. **Verify** (`--verify` only): one more reviewer, given the surviving
-   findings by ledger id, answers each `confirmed` or `refuted` with one line
-   of evidence (the `momayez` agent, Verify mode). Drop
+   findings by ledger id, answers each `confirmed` or `refuted` with a line
+   of evidence (`momayez`, Verify mode). Drop
    refuted ones.
 4. **Decide each finding yourself.** Open the cited line. Real and ≥minor: fix
    it, smallest change, with a test where the project has a test harness and

@@ -271,3 +271,9 @@ def test_status_finds_the_newest_job_for_the_target():
     got = kube.status(PR, HEAD)
     assert got['status'] == 'done' and got['ledger'] == sample() and got['failed'] is False
     assert [a for a, _ in runner.calls if a[2:4] == ['get', 'job']][-1][4] == NAME
+
+
+def test_a_failed_job_whose_log_cant_be_read_still_fails():
+    kube, _ = backend({('get', 'job'): job([{'type': 'Failed', 'status': 'True'}]),
+                       ('get', 'pods'): {'items': [pod('a', 'Failed')]}, ('logs', 'a'): NOT_FOUND})
+    assert kube.check(HANDLE)['status'] == 'failed'

@@ -4,17 +4,21 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 from . import failure as failures
 from .github import Gh, Target, run_ledger
-from .protocol import POLL_BACKOFF, POLL_FIRST, POLL_MAX, WAIT_TIMEOUT
+from .protocol import POLL_BACKOFF, POLL_FIRST, POLL_MAX, WAIT_TIMEOUT, WORKFLOW
 
 if TYPE_CHECKING:  # pragma: no cover
     from .backend import Backend
 
 Result = dict[str, Any]
+
+
+# A run GitHub stamps a little before our clock's request time is still the one requested.
+SKEW = timedelta(seconds=60)
 
 
 def now() -> datetime:
@@ -34,7 +38,7 @@ def _at(text: object) -> datetime | None:
 
 def pending(base: Result, phase: str, since: object = None, started: object = None,
             reason: str = '') -> Result:
-    """A review still on its way: `phase` is queued or running, timed by the backend's stamps
+    """A review still on its way: `phase` is queued, running or unknown, timed by the backend's stamps
     (`since` it was requested or created, `started` running), seconds as of now."""
     clock, begun, queued = now(), _at(started), _at(since)
     out = {**base, 'status': 'pending', 'phase': phase,
@@ -51,8 +55,8 @@ def known(gh: Gh, head: str) -> set[int]:
 
 
 def check(gh: Gh, target: Target, head: str, seen: set[int], since: str = '') -> Result:
-    """The review of `head` posted as a new `momayez` check run, else a pending result: queued
-    until a new run is in progress."""
+    """The review of `head` posted as a new `momayez` check run, else a pending result: running
+    once a new check run is in progress, else the phase of the workflow run on `head`."""
     opened = None
     for run in gh.runs(head):
         if run['id'] in seen:
@@ -69,7 +73,29 @@ def check(gh: Gh, target: Target, head: str, seen: set[int], since: str = '') ->
     base = {**target.meta(), 'head_sha': head}
     if opened and opened.get('status') == 'in_progress':
         return pending(base, 'running', since, opened.get('started_at'))
-    return pending(base, 'queued', since)
+    return workflow_phase(gh, base, head, since)
+
+
+def workflow_phase(gh: Gh, base: Result, head: str, since: str) -> Result:
+    """No open check run says how far the review got: the workflow run on `head` does, when one
+    started after the request. With none to see (a branch's dispatch runs on the default
+    branch), the phase is `unknown`, which no queue timeout acts on."""
+    runs = gh.api(f'repos/{{repo}}/actions/workflows/{WORKFLOW}/runs?head_sha={head}&per_page=5') or {}
+    after = _at(since)
+    after = after and after - SKEW
+    # A `skipped` run is another label's event, not this review.
+    fresh = [r for r in runs.get('workflow_runs') or [] if r.get('conclusion') != 'skipped'
+             and (after is None or (_at(r.get('created_at')) or after) >= after)]
+    if not fresh:
+        return pending(base, 'unknown', since)
+    run = max(fresh, key=lambda r: r.get('created_at') or '')
+    if run.get('status') == 'completed' and run.get('conclusion') != 'success':
+        # It ended before posting its check run: the same answer gh-dispatch gives.
+        return {**base, 'status': 'failed', 'url': run.get('html_url', ''), 'conclusion': run.get('conclusion'),
+                'reason': f'the review run ended {run.get("conclusion")}'}
+    if run.get('status') in ('in_progress', 'completed'):  # a success is about to post its check run
+        return pending(base, 'running', run.get('created_at'), run.get('run_started_at'))
+    return pending(base, 'queued', run.get('created_at'))
 
 
 def reviewed(found: dict[str, Any], head: str) -> bool:

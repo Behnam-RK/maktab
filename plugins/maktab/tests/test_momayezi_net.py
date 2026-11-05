@@ -21,9 +21,13 @@ def flaky(*errors):
 
 @pytest.mark.parametrize('message, idempotent, retried', [
     ('net/http: TLS handshake timeout', False, True),
-    ('read: connection reset by peer', False, True),
+    ('write: connection reset by peer', False, True),
+    ('read: connection reset by peer', False, False),
+    ('read: connection reset by peer', True, True),
     ('dial tcp: connection refused', True, True),
     ('HTTP 503: Service Unavailable', True, True),
+    ('Error from server (ServiceUnavailable): the server is currently unable', True, True),
+    ('Error from server (Timeout): the server was unable to return a response', True, True),
     ('HTTP 502: Bad Gateway', False, False),
     ('HTTP 404: Not Found', True, False),
     ('HTTP 422: Unprocessable', True, False),

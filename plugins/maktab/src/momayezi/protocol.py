@@ -11,7 +11,7 @@ EDITOR_MARKER = 'momayezi-editor-ledger:v2'
 EDITOR_RESET = f'<!-- {EDITOR_MARKER} null -->'
 FINDING_MARKER = 'momayez-finding:'
 # A review that left no ledger says why: `<!-- momayezi-error: {json} -->` in a check run's text,
-# the same line (unwrapped) last in a pod log, or ERROR_FILE beside ledger.json in the artifact.
+# the same line (unwrapped) last on stdout, so the last such line in a pod log, or ERROR_FILE beside ledger.json in the artifact.
 ERROR_MARKER = 'momayezi-error:'
 ERROR_FILE = 'error.json'
 FAILURES = ('failed', 'limited')

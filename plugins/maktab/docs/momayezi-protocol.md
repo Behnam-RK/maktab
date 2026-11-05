@@ -13,7 +13,7 @@ Constants in [protocol.py](../src/momayezi/protocol.py):
 | Press label | `review`, removed then re-added on each request |
 | Workflow | `momayez.yaml`, inputs `ref`, `ledger`; gh-dispatch adds `pr`, `head`, `post` |
 | Artifact | `momayez-ledger`, holding `ledger.json` or `error.json` |
-| Failure | `momayezi-error: {json}`: a pod log's last line, or `<!-- … -->` in a failed check run |
+| Failure | `momayezi-error: {json}`: the last such line in a pod log (stdout's last line), or `<!-- … -->` in a failed check run |
 | k8s | label `momayez.maktab/head`, annotation `momayez.maktab/target` |
 | Markers | `<!-- momayez-ledger:v2 <json> -->`, editor comment `<!-- momayezi-editor-ledger:v2 <json> -->` |
 | Size cap | 65,535 bytes; drops nits, then minor evidence, minor findings, all evidence; `truncated`, `last_id` |
@@ -28,10 +28,11 @@ token, to create check runs) and `GITHUB_REPOSITORY`:
 - `momayezi-post <pr|ref>`: posts the ledger on stdin as the check run, plus
   one COMMENT review that inlines this round's in-diff findings.
 - `momayezi-prior <pr|ref>`: prints the newest prior ledger.
-- `momayezi-wait <pr|ref> <head_sha> [--handle <json>] [--timeout s]
-  [--queue-timeout s]`: waits for the next check run, or for the review the
+- `momayezi-wait <pr|ref> <head_sha> [--handle <json> | --known ids --since iso]
+  [--timeout s] [--queue-timeout s]`: waits for the next check run, or for the review the
   handle names. Its JSON result has `status` and `phase` (`queued`, `running`,
-  `done`), with `queued_for` and `ran_for` seconds on a `timeout`.
+  `done`, or `unknown` while gh-label sees no workflow run yet, as for a branch), with
+  `queued_for` and `ran_for` seconds on a `timeout`.
 - `momayezi-review --repo o/n --pr N|--ref B --head <sha> [--ledger-file f]
   [--out dir] [--follow-rebase] [--no-project-memory]`: clones the head and
   runs one review-only round, for every backend. It needs only a read-only
