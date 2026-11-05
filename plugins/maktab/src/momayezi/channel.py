@@ -169,7 +169,10 @@ class Server:
     def last_remote(self, target: Target, settings: config.Settings) -> ledgers.Ledger | None:
         """The reviewer ledger a lean editor ledger is filled from: the last one this session
         delivered for the target, else the PR's newest one when the PR carries them."""
-        found = self.delivered.get((self.gh.repo, target.label))
+        key = (self.gh.repo, target.label)
+        if key not in self.delivered and any(repo == self.gh.repo for repo, _ in self.pending):
+            self.poll_once()  # the poller may not have caught up with a review that landed
+        found = self.delivered.get(key)
         if found is None and target.pr and settings.pr_comments == 'all':
             found = prior.from_pr(self.gh, target.pr)
         return found

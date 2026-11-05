@@ -358,7 +358,16 @@ def test_a_lean_editor_ledger_falls_back_to_the_prs_newest_review(no_thread):
     assert not error, got
     srv, out, _ = server(settings=config.Settings('gh-dispatch', 'none'))
     text, error = call(srv, out, 'request_review', {'ref': 'feat', 'ledger': lean(sample())})
-    assert error and 'invalid ledger' in text
+    assert error and 'needs the last reviewer ledger' in text
+
+
+def test_a_lean_editor_ledger_catches_up_on_a_review_still_pending(no_thread):
+    done = {'ref': 'feat', 'head_sha': HEAD, 'status': 'done', 'verdict': 'findings', 'ledger': sample()}
+    srv, out, _ = server({('GET', f'repos/{REPO}/commits/feat'): {'sha': HEAD}}, settings=config.Settings('gh-dispatch', 'none'),
+                         make=lambda s, g: Stub('gh-dispatch'))
+    srv.pending[(REPO, HEAD)] = {'backend': Stub(results=[done]), 'handle': {}, 'post': False, 'since': srv.clock()}
+    got, error = call(srv, out, 'request_review', {'ref': 'feat', 'ledger': lean(sample())})
+    assert not error, got
 
 
 def test_the_poller_remembers_a_delivered_ledger():

@@ -129,6 +129,8 @@ def test_a_rebased_review_also_lands_on_the_requested_head():
     post.check_run(client, moved)
     heads = [body['head_sha'] for body in runner.sent('POST', f'repos/{REPO}/check-runs')]
     assert heads == [HEAD, old]
+    runner.routes[('GET', runs_path(old))] = GhError('HTTP 422: No commit found for SHA')
+    post.check_run(client, moved)  # the orphaned head is skipped; the review still lands
 
 
 def test_an_error_run_is_a_failed_check_run_that_says_why():

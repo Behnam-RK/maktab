@@ -164,9 +164,14 @@ def test_a_lean_editor_ledger_is_filled_from_the_last_remote_one():
     assert got['model'] == last['model'] and got['round'] == raw['round']
 
 
+def test_a_lean_ledger_keeps_the_remote_last_id():
+    last = dict(sample(), last_id=9)
+    assert ledgers.complete_editor(lean(last), lambda: last)['last_id'] == 9
+
+
 def test_a_lean_ledger_needs_a_remote_one_and_known_ids():
     raw = lean(sample())
-    with pytest.raises(ledgers.LedgerError, match='invalid ledger'):
+    with pytest.raises(ledgers.LedgerError, match='needs the last reviewer ledger'):
         ledgers.complete_editor(raw, lambda: None)
     with pytest.raises(ledgers.LedgerError, match='invalid ledger'):
         ledgers.complete_editor('nope', sample)

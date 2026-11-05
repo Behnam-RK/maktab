@@ -162,6 +162,13 @@ def test_review_out_writes_the_ledger_or_the_failure(monkeypatch, tmp_path, caps
     assert '"reason":"HTTP 404","status":"failed"' in capsys.readouterr().out
 
 
+def test_a_label_wait_times_out_on_a_review_no_runner_took(fake, capsys):
+    fake.routes[('GET', runs_path())] = {'check_runs': []}
+    assert cli.main(['wait', '4', HEAD, '--queue-timeout', '0', '--timeout', '5']) == 0
+    got = json.loads(capsys.readouterr().out)
+    assert got['status'] == 'timeout' and got['phase'] == 'queued'
+
+
 def test_post_error_posts_a_failed_check_run(fake, tmp_path, capsys):
     fake.routes[('GET', runs_path())] = {'check_runs': []}
     path = tmp_path / 'error.json'

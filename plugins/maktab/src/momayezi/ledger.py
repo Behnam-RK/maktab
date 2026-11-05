@@ -114,10 +114,12 @@ def complete_editor(raw: Any, last: Callable[[], Ledger | None]) -> Ledger:
     remote ledger, finding by id. A finding it lacks is refused, never invented."""
     if not errors(raw):
         return raw
-    found = last() if isinstance(raw, dict) and isinstance(raw.get('findings'), list) else None
+    if not isinstance(raw, dict) or not isinstance(raw.get('findings'), list):
+        validate(raw)  # raises: not even a lean ledger
+    found = last()
     if found is None:
-        validate(raw)  # raises; with no remote ledger only the full form will do
-    assert found is not None
+        raise LedgerError('a lean editor ledger needs the last reviewer ledger, and none has arrived for '
+                          'this target: send the full ledger, or wait for the review to land')
     prior = {f['id']: f for f in found['findings']}
     findings = []
     for item in raw['findings']:
@@ -126,6 +128,8 @@ def complete_editor(raw: Any, last: Callable[[], Ledger | None]) -> Ledger:
             raise LedgerError(f'{ident} is not in the last remote ledger: send its full finding')
         findings.append({**prior[ident], **item})
     out = {'version': found['version'], **{k: copy.deepcopy(found[k]) for k in HEADER}, **raw}
+    if 'last_id' in found and 'last_id' not in raw:  # a truncated ledger's dropped ids stay issued
+        out['last_id'] = found['last_id']
     return validate(dict(out, findings=findings))
 
 

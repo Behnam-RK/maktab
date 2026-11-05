@@ -86,7 +86,10 @@ def check_run(gh: Gh, ledger: ledgers.Ledger) -> None:
     finish(gh, ledger['target']['head_sha'], body)
     # A rebased head's review also lands on the head that was requested, where waiters look.
     if ledger['target'].get('rebased_from'):
-        finish(gh, ledger['target']['rebased_from'], body)
+        try:
+            finish(gh, ledger['target']['rebased_from'], body)
+        except GhError:  # an old head GitHub no longer serves; the review itself has landed
+            pass
 
 
 def error_run(gh: Gh, head: str, why: failures.Failure) -> str:

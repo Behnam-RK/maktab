@@ -64,8 +64,9 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _wait(args: argparse.Namespace) -> dict:
+    # gh-label's hint carries no handle: its queue clock starts with the waiter.
     handle = args.handle or {'backend': 'gh-label', **args.target.meta(), 'head_sha': args.head_sha,
-                             'known': sorted(args.known)}
+                             'known': sorted(args.known), 'requested_at': poll.iso()}
     return poll.wait(backends.revive(handle, lambda: Gh.here(args.repo)), handle, args.timeout,
                      args.queue_timeout)
 
