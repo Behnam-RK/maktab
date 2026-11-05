@@ -12,6 +12,13 @@ A diff target, code or prose: `git diff <base> --shortstat` and `--name-only`
 insertions + deletions + untracked lines. Named files or
 documents: `wc -l` over them.
 
+Skip generated files from both counts: paths
+`git check-attr linguist-generated -- <paths>` sets, lock files (`*.lock`,
+`uv.lock`, `package-lock.json`, `Cargo.lock`), and the comma-separated globs
+in `${user_config.momayezi_size_ignore}`. Count them per path with
+`git diff --numstat`. Lenses still see every changed path. Print what was
+skipped: `Smart: Medium (412 lines, 9 files; 2 generated skipped, plain)`.
+
 ## Tier
 
 The higher tier of lines and files wins; a risky path bumps one tier.

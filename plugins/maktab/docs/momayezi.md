@@ -38,7 +38,8 @@ plans and specs work too.
 ## Smart
 
 `--smart` sizes the review from `git diff --shortstat` and untracked files,
-without reading the diff: a four-tier table sets reviewers and rounds, and a
+without reading the diff, and without counting generated or lock files: a
+four-tier table sets reviewers and rounds, and a
 path matching the `security` rule bumps one tier. A small, mechanical change
 reviews on `sonnet`. With a `floor>escalate` model (or `base>escalated`
 effort) setting, a Large/Max or risky change moves up to the second, and the
@@ -88,6 +89,7 @@ of the editor's model and the floor; smart drops a Small, plain change to
 | `momayezi_reviewer_effort` | empty | Reviewer and verifier effort, or `base>escalated` such as `medium>xhigh`; empty keeps the agent's `high`. |
 | `momayezi_queue_timeout` | empty | Seconds a remote review may sit queued; empty: the whole remote timeout. |
 | `momayezi_limit_wait_max` | `0` | Seconds a remote loop may sleep for a usage limit to reset; 0 stops at once. |
+| `momayezi_size_ignore` | empty | Comma-separated globs smart sizing doesn't count, beside generated files and lock files. |
 | `momayezi_max_rounds` | `3` | Round cap; the capped round reviews at full scope. |
 | `momayezi_max_reviewers` | `2` | Most lenses auto-picked per round, and most reviewers at once. |
 | `momayezi_smart` | `off` | `on` sizes every run like `--smart`; `--no-smart` turns it off per run. |

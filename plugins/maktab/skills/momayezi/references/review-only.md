@@ -17,7 +17,7 @@ SKILL.md names in parentheses (an `opus` floor, 2 reviewers). Smart sizing is
 always on.
 
 Execution is off. Every reviewer prompt carries `Execution: off`. Your own
-Bash is limited to `rg`, `git diff|log|show|blame|ls-files`, `ls` and `wc`, run
+Bash is limited to `rg`, `git diff|log|show|blame|ls-files|check-attr`, `ls` and `wc`, run
 from the checkout. Never use `git -C`, and never pipe into anything outside
 that list. Read files with Read. Measure and pick lenses yourself; the only
 subagents are `maktab:momayez` reviewers.
@@ -25,7 +25,7 @@ subagents are `maktab:momayez` reviewers.
 ## Steps
 
 1. **Target**: `<base>..<head>`. For smart, measure with
-   `git diff --shortstat <base> <head>`. Choose lenses from
+   `git diff --numstat <base> <head>`, skipping generated files (smart.md). Choose lenses from
    `git diff --name-only <base> <head>` (smart.md, lenses.md). Always use the
    full target for this, even when a ledger is given.
 2. **Intent**: read `--intent`. If it is missing or unreadable, review against

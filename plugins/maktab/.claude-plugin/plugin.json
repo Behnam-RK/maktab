@@ -67,6 +67,12 @@
       "description": "Most seconds a remote loop sleeps for the reviewer's usage limit to reset before requesting again. 0 or empty: stop at once, saying when it resets.",
       "default": "0"
     },
+    "momayezi_size_ignore": {
+      "type": "string",
+      "title": "momayezi · Size-ignored globs",
+      "description": "Comma-separated globs smart sizing leaves out of its line and file counts, beside linguist-generated paths and lock files. Lenses still see them.",
+      "default": ""
+    },
     "momayezi_max_rounds": {
       "type": "string",
       "title": "momayezi · Max rounds",
