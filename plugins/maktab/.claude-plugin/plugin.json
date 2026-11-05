@@ -55,6 +55,12 @@
       "default": "",
       "options": ["", "low", "medium", "high", "xhigh", "medium>high", "medium>xhigh", "high>xhigh"]
     },
+    "momayezi_queue_timeout": {
+      "type": "string",
+      "title": "momayezi · Remote queue timeout",
+      "description": "Seconds a remote review may sit queued, with no runner on it, before the waiter reports 'no runner picked it up'. Empty: the whole --remote-timeout.",
+      "default": ""
+    },
     "momayezi_max_rounds": {
       "type": "string",
       "title": "momayezi · Max rounds",

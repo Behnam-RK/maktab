@@ -41,6 +41,8 @@ def _parser() -> argparse.ArgumentParser:
     wait.add_argument('--known', type=_ids, default=set(), help='check-run ids to ignore, comma-separated')
     wait.add_argument('--handle', type=_handle, help="the backend's handle from request_review's wait hint")
     wait.add_argument('--timeout', type=float, default=WAIT_TIMEOUT, help='seconds (default %(default)s)')
+    wait.add_argument('--queue-timeout', type=float,
+                      help='give up after this many seconds queued, before any runner took it (default: --timeout)')
     rev = sub.add_parser('review', help='review HEAD on a fresh clone and print the ledger marker')
     rev.add_argument('--repo', required=True, help='owner/name')
     which = rev.add_mutually_exclusive_group(required=True)
@@ -56,7 +58,8 @@ def _parser() -> argparse.ArgumentParser:
 def _wait(args: argparse.Namespace) -> dict:
     handle = args.handle or {'backend': 'gh-label', **args.target.meta(), 'head_sha': args.head_sha,
                              'known': sorted(args.known)}
-    return poll.wait(backends.revive(handle, lambda: Gh.here(args.repo)), handle, args.timeout)
+    return poll.wait(backends.revive(handle, lambda: Gh.here(args.repo)), handle, args.timeout,
+                     args.queue_timeout)
 
 
 def _review(args: argparse.Namespace) -> str:

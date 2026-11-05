@@ -80,6 +80,7 @@ of the editor's model and the floor; smart drops a Small, plain change to
 |---|---|---|
 | `momayezi_reviewer_model` | `opus` | Floor (`sonnet`, `opus`, `fable`), or `floor>escalate` such as `sonnet>opus`. |
 | `momayezi_reviewer_effort` | empty | Reviewer and verifier effort, or `base>escalated` such as `medium>xhigh`; empty keeps the agent's `high`. |
+| `momayezi_queue_timeout` | empty | Seconds a remote review may sit queued; empty: the whole remote timeout. |
 | `momayezi_max_rounds` | `3` | Round cap; the capped round reviews at full scope. |
 | `momayezi_max_reviewers` | `2` | Most lenses auto-picked per round, and most reviewers at once. |
 | `momayezi_smart` | `off` | `on` sizes every run like `--smart`; `--no-smart` turns it off per run. |

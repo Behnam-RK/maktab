@@ -27,8 +27,10 @@ token, to create check runs) and `GITHUB_REPOSITORY`:
 - `momayezi-post <pr|ref>`: posts the ledger on stdin as the check run, plus
   one COMMENT review that inlines this round's in-diff findings.
 - `momayezi-prior <pr|ref>`: prints the newest prior ledger.
-- `momayezi-wait <pr|ref> <head_sha> [--handle <json>]`: waits for the next
-  check run, or for the review the handle names.
+- `momayezi-wait <pr|ref> <head_sha> [--handle <json>] [--timeout s]
+  [--queue-timeout s]`: waits for the next check run, or for the review the
+  handle names. Its JSON result has `status` and `phase` (`queued`, `running`,
+  `done`), with `queued_for` and `ran_for` seconds on a `timeout`.
 - `momayezi-review --repo o/n --pr N|--ref B --head <sha> [--ledger-file f]`:
   clones the head and runs one review-only round. It takes the repo from
   `--repo` and needs only a read-only `GH_TOKEN`. It refuses a fork or a moved

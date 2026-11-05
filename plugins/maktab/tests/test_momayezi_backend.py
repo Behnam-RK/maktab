@@ -50,7 +50,7 @@ def test_dispatch_names_the_pr_head_and_ledger_and_returns_the_run():
     assert body['ref'] == 'develop' and body['return_run_details'] is True
     assert body['inputs'] == {'pr': '4', 'head': HEAD, 'ledger': ledgers.dumps(sample()), 'post': 'true'}
     assert handle == {'backend': 'gh-dispatch', 'pr': '4', 'head_sha': HEAD, 'run_id': 7, 'post': True,
-                      'known': [2]}
+                      'known': [2], 'requested_at': '2026-11-05T12:00:00Z'}
 
 
 def test_a_direct_dispatch_skips_the_check_runs_and_says_post_false():
@@ -80,13 +80,17 @@ def handle(post=False, **kw):
 
 
 def test_check_waits_for_the_run_then_reads_its_artifact():
-    client, _ = dispatch_client({('GET', RUN): [{'id': 7, 'status': 'in_progress'},
+    client, _ = dispatch_client({('GET', RUN): [{'id': 7, 'status': 'queued', 'created_at': '2026-11-05T11:59:00Z'},
+                                                {'id': 7, 'status': 'in_progress', 'created_at': '2026-11-05T11:58:00Z',
+                                                 'run_started_at': '2026-11-05T11:59:30Z'},
                                                 {'id': 7, 'status': 'completed', 'conclusion': 'success',
                                                  'html_url': 'u'}],
                                  ('GET', ARTIFACTS): {'artifacts': [{'name': 'momayez-ledger'}]}},
                                 files={'ledger.json': ledgers.dumps(sample()), 'target': '4\n'})
     backend_ = GhDispatch(client, post=False)
-    assert backend_.check(handle()) is None
+    base = {'pr': '4', 'head_sha': HEAD, 'status': 'pending'}
+    assert backend_.check(handle()) == {**base, 'phase': 'queued', 'queued_for': 60, 'ran_for': 0}
+    assert backend_.check(handle()) == {**base, 'phase': 'running', 'queued_for': 90, 'ran_for': 30}
     assert backend_.check(handle()) == {'pr': '4', 'head_sha': HEAD, 'url': 'u', 'status': 'done',
                                         'verdict': 'findings', 'ledger': sample()}
 
@@ -111,7 +115,7 @@ def test_check_failures_carry_a_reason():
 def test_with_post_the_ledger_comes_from_the_check_run():
     client, _ = dispatch_client({('GET', RUN): {'id': 7, 'status': 'completed', 'conclusion': 'success'},
                                  ('GET', runs_path()): [{'check_runs': []}, {'check_runs': [run(3, sample())]}]})
-    assert GhDispatch(client).check(handle(post=True)) is None
+    assert GhDispatch(client).check(handle(post=True, requested_at='2026-11-05T11:55:00Z'))['queued_for'] == 300
     assert GhDispatch(client).check(handle(post=True))['ledger'] == sample()
 
 

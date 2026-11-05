@@ -199,7 +199,7 @@ def test_check_reads_the_newest_succeeded_pod():
     pods = {'items': [pod('a', created='1'), pod('b', 'Failed', '3'), pod('c', created='2')]}
     kube, runner = backend({('get', 'job'): [job(), job([COMPLETE])], ('get', 'pods'): pods,
                             ('logs', 'c'): marker(sample())})
-    assert kube.check(HANDLE) is None
+    assert kube.check(HANDLE)['phase'] == 'running'
     assert kube.check(HANDLE) == {'pr': '4', 'head_sha': HEAD, 'job': NAME, 'status': 'done',
                                   'verdict': 'findings', 'ledger': sample()}
     assert runner.calls[-2][0][-3:] == [f'batch.kubernetes.io/job-name={NAME}', '-o', 'json']
@@ -225,6 +225,22 @@ def test_check_failures_carry_a_reason(routes, reason):
     assert got['status'] == 'failed' and reason in got['reason'] and got['job'] == NAME
 
 
+def test_a_running_job_says_queued_until_its_pod_is_placed():
+    unschedulable = dict(pod('a', 'Pending'), status={'phase': 'Pending', 'conditions': [
+        {'type': 'PodScheduled', 'status': 'False', 'reason': 'Unschedulable', 'message': '0/3 nodes are available'}]})
+    started = dict(pod('b', 'Running'), status={'phase': 'Running', 'startTime': '2026-11-05T11:00:00Z'})
+    kube, runner = backend({('get', 'job'): job(), ('get', 'pods'): {'items': []}})
+    assert kube.check(HANDLE)['phase'] == 'queued'
+    runner.routes[('get', 'pods')] = {'items': [unschedulable]}
+    got = kube.check(HANDLE)
+    assert got['phase'] == 'queued' and got['reason'] == '0/3 nodes are available' and got['queued_for'] == 7200
+    runner.routes[('get', 'pods')] = {'items': [dict(unschedulable, status={'phase': 'Pending'})]}
+    assert 'reason' not in kube.check(HANDLE)
+    runner.routes[('get', 'pods')] = {'items': [started]}
+    got = kube.check(HANDLE)
+    assert got['phase'] == 'running' and got['queued_for'] == 3600 and got['ran_for'] == 3600
+
+
 def test_status_finds_the_newest_job_for_the_target():
     jobs = {'items': [job(name='old', created='1'), job(name='other', created='3', target='feat'),
                       job(name=NAME, created='2')]}
@@ -233,7 +249,8 @@ def test_status_finds_the_newest_job_for_the_target():
     assert runner.calls[0][0][-4:] == ['-l', f'momayez.maktab/head={HEAD}', '-o', 'json']
     runner.routes = {('get', 'jobs'): jobs, ('get', 'job'): [job(), job([COMPLETE])],
                      ('get', 'pods'): {'items': [pod('p')]}, ('logs', 'p'): marker(sample())}
-    assert kube.status(PR, HEAD) == {'status': 'pending', 'pr': '4', 'head_sha': HEAD}
+    assert kube.status(PR, HEAD) == {'status': 'pending', 'pr': '4', 'head_sha': HEAD, 'job': NAME,
+                                     'phase': 'running', 'queued_for': 7200, 'ran_for': 0}
     got = kube.status(PR, HEAD)
     assert got['status'] == 'done' and got['ledger'] == sample() and got['failed'] is False
     assert [a for a, _ in runner.calls if a[2:4] == ['get', 'job']][-1][4] == NAME

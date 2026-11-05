@@ -29,7 +29,7 @@ class Backend(Protocol):
 
     def request(self, target: Target, head: str, editor: ledgers.Ledger | None) -> Handle: ...
 
-    def check(self, handle: Handle) -> Result | None: ...
+    def check(self, handle: Handle) -> Result: ...
 
     def status(self, target: Target, head: str) -> Result: ...
 
@@ -53,10 +53,12 @@ class GhLabel:
             self.gh.press(target.pr, LABEL)  # the editor ledger went in the PR comment
         else:
             self.gh.dispatch(WORKFLOW, {'ref': str(target.ref), 'ledger': _sent(editor)})
-        return {'backend': self.name, **target.meta(), 'head_sha': head, 'known': sorted(seen)}
+        return {'backend': self.name, **target.meta(), 'head_sha': head, 'known': sorted(seen),
+                'requested_at': poll.iso()}
 
-    def check(self, handle: Handle) -> Result | None:
-        return poll.check(self.gh, Target.from_meta(handle), handle['head_sha'], set(handle.get('known') or ()))
+    def check(self, handle: Handle) -> Result:
+        return poll.check(self.gh, Target.from_meta(handle), handle['head_sha'], set(handle.get('known') or ()),
+                          handle.get('requested_at', ''))
 
     def status(self, target: Target, head: str) -> Result:
         runs = self.gh.runs(head)
@@ -94,19 +96,22 @@ class GhDispatch:
             raise GhError(f'{WORKFLOW} rejected the dispatch; it may not declare the gh-dispatch inputs '
                           f'{", ".join(DISPATCH_INPUTS)} yet (docs/momayezi-remote.md): {exc}') from None
         return {'backend': self.name, **target.meta(), 'head_sha': head, 'run_id': run_id,
-                'post': self.post, 'known': sorted(seen)}
+                'post': self.post, 'known': sorted(seen), 'requested_at': poll.iso()}
 
-    def check(self, handle: Handle) -> Result | None:
+    def check(self, handle: Handle) -> Result:
         target, head = Target.from_meta(handle), handle['head_sha']
         run = self.gh.workflow_run(int(handle['run_id']))
         if run.get('status') != 'completed':
-            return None
+            since = run.get('created_at') or handle.get('requested_at')
+            if run.get('status') == 'in_progress':
+                return poll.pending({**target.meta(), 'head_sha': head}, 'running', since, run.get('run_started_at'))
+            return poll.pending({**target.meta(), 'head_sha': head}, 'queued', since)
         base = {**target.meta(), 'head_sha': head, 'url': run.get('html_url', '')}
         if run.get('conclusion') != 'success':
             return {**base, 'status': 'failed', 'conclusion': run.get('conclusion'),
                     'reason': f'the review run ended {run.get("conclusion")}'}
         if handle.get('post'):
-            return poll.check(self.gh, target, head, set(handle.get('known') or ()))
+            return poll.check(self.gh, target, head, set(handle.get('known') or ()), handle.get('requested_at', ''))
         try:
             found = self.gh.artifact_ledger(int(run['id']))
         except ledgers.LedgerError as exc:  # a finished run: retrying reads the same bytes
@@ -126,9 +131,7 @@ class GhDispatch:
         if not runs:
             return {'status': 'none', **target.meta(), 'head_sha': head}
         result = self.check({**target.meta(), 'head_sha': head, 'run_id': runs[0]['id'], 'post': False})
-        if result is None:
-            return {'status': 'pending', **target.meta(), 'head_sha': head}
-        return poll.summary(result)
+        return result if result['status'] == 'pending' else poll.summary(result)
 
 
 def make(settings: Settings, gh: Gh) -> Backend:

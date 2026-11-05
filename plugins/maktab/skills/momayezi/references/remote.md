@@ -36,12 +36,15 @@ stay as in SKILL.md. Only how a round gets its findings changes.
    it to `base_sha` so the remote reviews the full target. The result gives
    the new `head_sha` and a `wait` command.
 3. **Wait**: run that command with Bash `run_in_background`, adding
-   `--timeout <remote-timeout>` (default 1200). Go on with whichever arrives
+   `--timeout <remote-timeout>` (default 1200) and, when
+   `${user_config.momayezi_queue_timeout}` is set, `--queue-timeout` with it. Go on with whichever arrives
    first: the waiter's line, or a `<channel source="plugin:maktab:momayez">`
    event for the same `head_sha`. Ignore the other, and stop the waiter if it
    is still running.
 4. **Timeout or failure**: if the status is `timeout` or `failed`, request
-   again. After a second one, stop with `stopping: remote unavailable`.
+   again. After a second one, stop with `stopping: remote unavailable`. A
+   `timeout` with `phase: queued` is reported as `no runner picked it up`
+   (plus its `reason`), not as reviewer trouble.
 5. **Merge**: load the returned ledger and merge it by id (ledger.md). Decide
    each new or re-raised finding as in SKILL.md step 4, then run the gate
    (step 5). For every `wont-fix` and `disputed`, post the reason with

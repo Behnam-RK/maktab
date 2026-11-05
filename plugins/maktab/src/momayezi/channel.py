@@ -211,7 +211,7 @@ class Server:
                 result = entry['backend'].check(entry['handle'])
             except Exception:  # a transient gh or kubectl failure; the next poll retries
                 continue
-            if result:
+            if result['status'] != 'pending':
                 self.pending.pop(key, None)
                 if 'ledger' in result:
                     self.delivered[(key[0], Target.from_meta(result).label)] = result['ledger']

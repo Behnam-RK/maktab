@@ -157,7 +157,21 @@ class K8sJob:
         self.kubectl('patch', 'configmap', configmap, '--type', 'merge',
                      '-p', json.dumps({'metadata': {'ownerReferences': [owner]}}))
 
-    def check(self, handle: dict[str, Any]) -> dict[str, Any] | None:
+    def progress(self, base: dict[str, Any], name: str, job: dict[str, Any]) -> dict[str, Any]:
+        """A Job still on its way: queued while its pod is Pending (with the scheduler's word
+        when it can't be placed), else running."""
+        pods = self.kubectl.json('get', 'pods', '-l', f'batch.kubernetes.io/job-name={name}')['items']
+        since = created_at(job)
+        if not pods:
+            return poll.pending(base, 'queued', since)
+        status = max(pods, key=created_at).get('status') or {}
+        if status.get('phase') == 'Pending':
+            why = [c.get('message') or c.get('reason') or '' for c in status.get('conditions') or []
+                   if c.get('type') == 'PodScheduled' and c.get('status') == 'False']
+            return poll.pending(base, 'queued', since, reason=why[0] if why else '')
+        return poll.pending(base, 'running', since, status.get('startTime'))
+
+    def check(self, handle: dict[str, Any]) -> dict[str, Any]:
         name, head = handle['job'], handle['head_sha']
         base = {**Target.from_meta(handle).meta(), 'head_sha': head, 'job': name}
 
@@ -168,7 +182,7 @@ class K8sJob:
             return failed(f'Job {name} is gone (deleted, or past its TTL)')
         kind, why = state(job)
         if kind == 'running':
-            return None
+            return self.progress(base, name, job)
         if kind == 'Failed':
             return failed(f'Job {name} failed: {why}' if why else f'Job {name} failed')
         pods = self.kubectl.json('get', 'pods', '-l', f'batch.kubernetes.io/job-name={name}')['items']
@@ -193,6 +207,4 @@ class K8sJob:
         if not mine:
             return {'status': 'none', **target.meta(), 'head_sha': head}
         result = self.check(self.handle(target, head, max(mine, key=created_at)['metadata']['name']))
-        if result is None:
-            return {'status': 'pending', **target.meta(), 'head_sha': head}
-        return poll.summary(result)
+        return result if result['status'] == 'pending' else poll.summary(result)
