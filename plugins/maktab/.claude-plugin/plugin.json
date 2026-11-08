@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "maktab",
   "displayName": "maktab",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "description": "tahrir keeps docs true to code (doc-budget gate, ADRs); momayezi runs a review ↔ fix loop, locally or against the remote momayezi reviewer; tarahi drafts shaping docs and publishes them to Linear.",
   "author": { "name": "Behnam RK" },
   "repository": "https://github.com/Behnam-RK/maktab",
