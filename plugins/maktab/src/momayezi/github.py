@@ -165,9 +165,9 @@ class Gh:
             args += ['-f', f'{key}={value}']
         self.run(args, None)
 
-    def dispatch_run(self, workflow: str, inputs: dict[str, str]) -> int:
-        """Dispatch `workflow` on the default branch and return the run it started."""
-        body = {'ref': self.default_branch(), 'inputs': inputs, 'return_run_details': True}
+    def dispatch_run(self, workflow: str, inputs: dict[str, str], ref: str | None = None) -> int:
+        """Dispatch `workflow` on `ref`, else the default branch, and return the run it started."""
+        body = {'ref': ref or self.default_branch(), 'inputs': inputs, 'return_run_details': True}
         out = self.api(f'repos/{{repo}}/actions/workflows/{workflow}/dispatches', 'POST', body)
         if not out or not out.get('workflow_run_id'):
             raise GhError('the dispatch returned no run id (GitHub API too old for return_run_details?)')

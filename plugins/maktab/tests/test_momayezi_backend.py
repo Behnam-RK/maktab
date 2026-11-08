@@ -53,6 +53,13 @@ def test_dispatch_names_the_pr_head_and_ledger_and_returns_the_run():
                       'known': [2], 'requested_at': '2026-11-05T12:00:00Z'}
 
 
+def test_a_dispatch_ref_replaces_the_default_branch():
+    client, runner = dispatch_client()
+    GhDispatch(client, post=False, ref='main').request(Target(ref='feat'), HEAD, None)
+    assert runner.sent('POST', DISPATCH)[0]['ref'] == 'main'
+    assert not runner.sent('GET', f'repos/{REPO}')
+
+
 def test_a_direct_dispatch_skips_the_check_runs_and_says_post_false():
     client, runner = dispatch_client()
     handle = GhDispatch(client, post=False).request(Target(ref='feat'), HEAD, None)
@@ -70,6 +77,9 @@ def test_a_workflow_without_the_inputs_says_so():
     client, _ = dispatch_client({('POST', DISPATCH): GhError('Unexpected inputs provided: ["pr"] (HTTP 422)')})
     with pytest.raises(GhError, match='may not declare the gh-dispatch inputs pr, ref, head, ledger, post'):
         GhDispatch(client, post=False).request(PR, HEAD, None)
+    client, _ = dispatch_client({('POST', DISPATCH): GhError('No ref found for: typo (HTTP 422)')})
+    with pytest.raises(GhError, match='rejected the dispatch on typo: the ref may not exist'):
+        GhDispatch(client, post=False, ref='typo').request(PR, HEAD, None)
     client, _ = dispatch_client({('POST', DISPATCH): GhError('HTTP 403')})
     with pytest.raises(GhError, match='^HTTP 403$'):
         GhDispatch(client, post=False).request(PR, HEAD, None)
@@ -144,7 +154,8 @@ def test_status_with_post_reads_the_check_runs():
 def test_make_builds_the_configured_backend(tmp_path):
     client, _ = gh()
     assert isinstance(backend.make(Settings('gh-label', 'all'), client), GhLabel)
-    direct = backend.make(Settings('gh-dispatch', 'none'), client)
+    direct = backend.make(Settings('gh-dispatch', 'none', dispatch_ref='main'), client)
+    assert direct.ref == 'main'
     assert isinstance(direct, GhDispatch) and direct.post is False
     job = backend.make(Settings('k8s-job', 'none', K8s(tmp_path / 't.yaml', 'ns', 'ctx')), client)
     assert isinstance(job, K8sJob) and job.repo == REPO and job.kubectl.context == 'ctx'

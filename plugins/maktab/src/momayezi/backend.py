@@ -79,22 +79,24 @@ class GhLabel:
 
 class GhDispatch:
     """A `workflow_dispatch` of momayezi.yaml, which fires no `pull_request` workflow. With
-    `post`, the ledger comes back as the check run; without, from the run's artifact."""
+    `post`, the ledger comes back as the check run; without, from the run's artifact. It runs
+    the workflow on `self.ref` (`dispatch_ref`), else the default branch."""
 
     name = 'gh-dispatch'
 
-    def __init__(self, gh: Gh, post: bool = True):
-        self.gh, self.post = gh, post
+    def __init__(self, gh: Gh, post: bool = True, ref: str | None = None):
+        self.gh, self.post, self.ref = gh, post, ref
 
     def request(self, target: Target, head: str, editor: ledgers.Ledger | None) -> Handle:
         seen = poll.known(self.gh, head) if self.post else set()
         inputs = {**target.meta(), 'head': head, 'ledger': _sent(editor), 'post': str(self.post).lower()}
         try:
-            run_id = self.gh.dispatch_run(WORKFLOW, inputs)
+            run_id = self.gh.dispatch_run(WORKFLOW, inputs, self.ref)
         except GhError as exc:
             if exc.status != 422:
                 raise
-            raise GhError(f'{WORKFLOW} rejected the dispatch; it may not declare the gh-dispatch inputs '
+            raise GhError(f'{WORKFLOW} rejected the dispatch on {self.ref or "the default branch"}: the ref may '
+                          f'not exist, or its workflow may not declare the gh-dispatch inputs '
                           f'{", ".join(DISPATCH_INPUTS)} yet (docs/momayezi-remote.md): {exc}') from None
         return {'backend': self.name, **target.meta(), 'head_sha': head, 'run_id': run_id,
                 'post': self.post, 'known': sorted(seen), 'requested_at': poll.iso()}
@@ -141,7 +143,7 @@ class GhDispatch:
 
 def make(settings: Settings, gh: Gh) -> Backend:
     if settings.backend == 'gh-dispatch':
-        return GhDispatch(gh, post=settings.pr_comments == 'all')
+        return GhDispatch(gh, post=settings.pr_comments == 'all', ref=settings.dispatch_ref)
     if settings.backend == 'k8s-job':
         k8s = settings.k8s
         assert k8s is not None  # config.load requires it for k8s-job

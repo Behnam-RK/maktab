@@ -1,7 +1,8 @@
 """Which reviewer backend runs a remote review, and whether momayezi writes to the PR.
 
 The backend: $MOMAYEZI_REVIEWER_BACKEND, then the user's `momayezi_reviewer_backend` setting
-(unless `repo`), then `.momayezi.toml`'s `backend`, then gh-label. PR writes come from the
+(unless `repo`), then `.momayezi.toml`'s `backend`, then gh-label. gh-dispatch's ref is
+`.momayezi.toml`'s `dispatch_ref`. PR writes come from the
 user's `momayezi_pr_comments` setting. The MCP server sees the two settings as
 MOMAYEZI_USER_* (plugin.json maps them), apart from the shell override.
 """
@@ -33,6 +34,7 @@ class Settings:
     backend: str
     pr_comments: str  # resolved: 'all' or 'none'
     k8s: K8s | None = None
+    dispatch_ref: str | None = None  # gh-dispatch's ref; None is the repo's default branch
 
 
 def _set(value: str | None) -> str:
@@ -66,8 +68,9 @@ def load(env: Mapping[str, str] | None = None) -> Settings:
     root = Path(env.get('CLAUDE_PROJECT_DIR') or os.getcwd())
     user = _set(env.get('MOMAYEZI_USER_REVIEWER_BACKEND'))
     chosen = _set(env.get('MOMAYEZI_REVIEWER_BACKEND')) or (user if user != 'repo' else '')
-    # The repo file is read only when it decides something: the backend, or k8s-job's [k8s].
-    repo = _file(root) if chosen in ('', 'k8s-job') else {}
+    # The repo file is read only when it decides something: the backend, k8s-job's [k8s],
+    # or gh-dispatch's `dispatch_ref`.
+    repo = _file(root) if chosen in ('', 'k8s-job', 'gh-dispatch') else {}
     backend = chosen or str(repo.get('backend') or '') or 'gh-label'
     if backend not in BACKENDS:
         raise ConfigError(f'unknown reviewer backend {backend!r}: one of {", ".join(BACKENDS)}')
@@ -80,4 +83,5 @@ def load(env: Mapping[str, str] | None = None) -> Settings:
         raise ConfigError('gh-label needs PR comments: a label carries no ledger. '
                           'Use gh-dispatch or k8s-job for pr_comments=none')
     k8s = _k8s(root, repo.get('k8s')) if backend == 'k8s-job' else None
-    return Settings(backend, comments, k8s)
+    ref = str(repo.get('dispatch_ref') or '') if backend == 'gh-dispatch' else ''
+    return Settings(backend, comments, k8s, ref or None)

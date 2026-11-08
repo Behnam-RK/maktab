@@ -54,12 +54,20 @@ def test_the_pre_rename_repo_file_is_refused_not_ignored(tmp_path):
         load(tmp_path)
 
 
-def test_a_chosen_gh_backend_leaves_the_repo_file_unread(tmp_path):
+def test_a_chosen_gh_label_leaves_the_repo_file_unread(tmp_path):
     broken = 'backend = \n'
-    assert load(tmp_path, broken, MOMAYEZI_REVIEWER_BACKEND='gh-dispatch').backend == 'gh-dispatch'
     assert load(tmp_path, broken, MOMAYEZI_USER_REVIEWER_BACKEND='gh-label').backend == 'gh-label'
-    with pytest.raises(ConfigError):
-        load(tmp_path, broken, MOMAYEZI_REVIEWER_BACKEND='k8s-job')
+    for backend in ('k8s-job', 'gh-dispatch'):
+        with pytest.raises(ConfigError):
+            load(tmp_path, broken, MOMAYEZI_REVIEWER_BACKEND=backend)
+
+
+def test_dispatch_ref_is_gh_dispatchs_and_defaults_to_none(tmp_path):
+    assert load(tmp_path, 'backend = "gh-dispatch"\n').dispatch_ref is None
+    text = 'backend = "gh-dispatch"\ndispatch_ref = "main"\n'
+    assert load(tmp_path, text).dispatch_ref == 'main'
+    assert load(tmp_path, text, MOMAYEZI_REVIEWER_BACKEND='gh-dispatch').dispatch_ref == 'main'
+    assert load(tmp_path, 'dispatch_ref = "main"\n').dispatch_ref is None  # gh-label's branch dispatch ignores it
 
 
 def test_k8s_context_is_optional(tmp_path):

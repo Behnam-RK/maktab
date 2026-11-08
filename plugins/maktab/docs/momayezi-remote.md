@@ -50,6 +50,10 @@ namespace = "momayezi"              #   ${target_flag} ${target} ${head} ${ledge
 context = "staging"                # optional kubectl context
 ```
 
+`gh-dispatch` runs `momayezi.yaml` on the default branch. If that takes
+unreviewed merges, set `dispatch_ref = "release"` (the trusted branch) in
+`.momayezi.toml`. `gh-label`'s branch dispatch ignores it.
+
 2.5.0 renamed every repo-hosted name from `momayez*` (table above;
 constants in [momayezi-protocol.md](momayezi-protocol.md)): rename
 `momayez.yaml`, `momayez-post.yaml`, their `run-name`, the `momayez-ledger`
@@ -59,9 +63,9 @@ template carries over unchanged. Pin 2.5.0 on both ends (the CI scripts and
 the image): older ones post under the old names, so a round just times out.
 
 `.momayezi.toml` is trusted like the repo's code: it can point `kubectl` at a
-context and a template. Setting the backend in the env or
-`momayezi_reviewer_backend` to a gh-* one leaves the file unread; k8s-job
-always takes `[k8s]` from it.
+context and a template, and pick the branch gh-dispatch runs as. Setting the backend in the env or
+`momayezi_reviewer_backend` to `gh-label` leaves the file unread; k8s-job
+always takes `[k8s]` from it, and gh-dispatch its `dispatch_ref`.
 
 **k8s-job** works as follows:
 - The Job is named `momayezi-pr<N>-<head7>-r<round>`, or for a branch
