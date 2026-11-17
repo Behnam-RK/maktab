@@ -44,11 +44,11 @@ path. Judge by path only, never by content.
 formatting, comment or typo edits, version bumps, generated or dependency
 churn. Anything else keeps the normal reviewer-model rule.
 
-**Escalation.** A `floor>escalate` model setting, or a `base>escalated`
+**Escalation.** A `floor>ceiling` model setting, or a `base>escalated`
 effort setting, escalates when the tier is Large or Max, or a risky path
-bumped it. The round then runs on the stronger of the escalate value and the
-normal pick; escalation only raises. Order efforts
+bumped it. Each pair then gives the stronger of its second value and the
+normal pick: a model pair its ceiling; a single value stays put. Order efforts
 `low < medium < high < xhigh`. A round is escalated only when this raised the
 pick: announce `on <model> · effort <e> (escalated: <large|max>, risky)`, and
 add the ledger note `Escalated to <model>, effort <e>: <reasons>`, naming only
-what rose. Smart off: a pair is its first value.
+what rose. Smart off: nothing escalates.

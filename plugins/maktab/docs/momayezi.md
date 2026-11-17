@@ -41,7 +41,7 @@ plans and specs work too.
 without reading the diff, and without counting generated or lock files: a
 four-tier table sets reviewers and rounds, and a
 path matching the `security` rule bumps one tier. A small, mechanical change
-reviews on `sonnet`. With a `floor>escalate` model (or `base>escalated`
+reviews on `sonnet`. With a `floor>ceiling` model (or `base>escalated`
 effort) setting, a Large/Max or risky change moves up to the second, and the
 announcement and ledger notes say why. Explicit flags win; tiers live in
 [smart.md](../skills/momayezi/references/smart.md).
@@ -85,12 +85,12 @@ outside the checkout, so on the runner:
 
 Set in `/config` or when enabling the plugin. `CLAUDE_CODE_EFFORT_LEVEL`, if
 set, overrides every effort. Reviewers run on the stronger
-of the editor's model and the floor; smart drops a Small, plain change to
-`sonnet` and escalates a heavy one; `--model` beats all.
+of the editor's model and the floor, never above a ceiling; smart drops a
+Small, plain change to `sonnet` and escalates a heavy one; `--model` beats all.
 
 | Option | Default | |
 |---|---|---|
-| `momayezi_reviewer_model` | `opus` | Floor (`sonnet`, `opus`, `fable`), or `floor>escalate` such as `sonnet>opus`. |
+| `momayezi_reviewer_model` | `opus` | Floor (`sonnet`, `opus`, `fable`), or `floor>ceiling` such as `sonnet>opus`. |
 | `momayezi_reviewer_effort` | `agent` | Effort, or `base>escalated` such as `medium>xhigh`; `agent`: its own `high`. Claude Code ≥ 2.1.292. |
 | `momayezi_queue_timeout` | empty | Seconds a remote review may sit queued; empty: the whole remote timeout. |
 | `momayezi_limit_wait_max` | `0` | Seconds a remote loop may sleep for a usage limit to reset; 0 stops at once. |

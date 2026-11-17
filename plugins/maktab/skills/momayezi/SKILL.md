@@ -35,9 +35,10 @@ Arguments: `$ARGUMENTS`
    else `${user_config.momayezi_max_reviewers}` (2 if blank or unsubstituted).
 5. **Model and effort.** `sonnet < opus < fable`: stronger of yours and
    the floor `${user_config.momayezi_reviewer_model}` (`opus` if unset:
-   blank or unsubstituted). Effort: `${user_config.momayezi_reviewer_effort}`,
-   none if `agent` or unset. A pair is its base unless smart escalates (smart.md);
-   `--model` wins. Pass both on each reviewer and verifier spawn.
+   blank or unsubstituted), capped at a `floor>ceiling` pair's second.
+   Effort: `${user_config.momayezi_reviewer_effort}`, none if `agent` or
+   unset; a pair is its base. Smart escalates; `--model` wins.
+   Pass both to every spawn.
 6. **Cap.** `--max-rounds`, else `${user_config.momayezi_max_rounds}` (3 if blank or
    unsubstituted).
 7. **Gate** (code only). Find it per [references/gate.md](references/gate.md).

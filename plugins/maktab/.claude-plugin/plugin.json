@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "maktab",
   "displayName": "maktab",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "description": "tahrir keeps docs true to code (doc-budget gate, ADRs); momayezi runs a review ↔ fix loop, locally or against the remote momayezi reviewer; tarahi drafts shaping docs and publishes them to Linear.",
   "author": { "name": "Behnam RK" },
   "repository": "https://github.com/Behnam-RK/maktab",
@@ -43,8 +43,8 @@
     },
     "momayezi_reviewer_model": {
       "type": "string",
-      "title": "momayezi · Reviewer model floor",
-      "description": "Weakest model reviewers may run on; reviewers get the stronger of this and the editor's own model. floor>escalate (e.g. sonnet>opus): under smart sizing, a Large/Max or risky change moves up to the second. /maktab:momayezi --model overrides per run.",
+      "title": "momayezi · Reviewer model floor (and ceiling)",
+      "description": "Weakest model reviewers may run on; reviewers get the stronger of this and the editor's own model. floor>ceiling (e.g. sonnet>opus) also caps them at the second, and under smart sizing a Large/Max or risky change moves up to it. /maktab:momayezi --model overrides per run.",
       "default": "opus",
       "options": ["sonnet", "opus", "fable", "sonnet>opus", "sonnet>fable", "opus>fable"]
     },
