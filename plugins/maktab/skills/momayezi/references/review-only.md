@@ -22,7 +22,8 @@ Execution is off. Every reviewer prompt carries `Execution: off`. Your own
 Bash is limited to `rg`, `git diff|log|show|blame|ls-files|check-attr`, `ls` and `wc`, run
 from the checkout. Never use `git -C`, and never pipe into anything outside
 that list. Read files with Read. Measure and pick lenses yourself; the only
-subagents are `maktab:momayezi` reviewers.
+subagents are `maktab:momayezi` reviewers, and at least one always runs,
+even on a Small docs-only diff.
 
 ## Steps
 
