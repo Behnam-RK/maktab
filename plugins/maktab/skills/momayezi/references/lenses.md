@@ -13,7 +13,7 @@ each rule below as `… | rg -qi '<pattern>'` (exit 0 = a path matches):
 
 ```
 prose     \.(md|mdx|rst|txt|adoc)$
-security  auth|secret|token|crypt|passw|credential|shell|exec|sql|migrat|parse|\.sh$|\.github/workflows/|(^|/)(infra|deploy)/|terraform|\.tf$|dockerfile|compose\.ya?ml$
+security  auth|secret|token|crypt|passw|credential|shell|exec|sql|migrat|parse|\.sh$|\.github/workflows/|(^|/)(infra|deploy)/|terraform|\.tf$|dockerfile|compose\.ya?ml$|asgi|wsgi|lifespan|startup
 test      (^|/)(tests?|__tests__|specs?)/|(^|/)test_[^/]*$|_test\.[a-z]+$|\.(test|spec)\.[a-z]+$|_spec\.rb$|conftest\.py$
 source    \.(py|pyi|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kts?|swift|c|cc|cpp|h|hpp|cs|php|scala|exs?|sh)$
 docs      \.(md|mdx|rst)$|(^|/)docs?/|(^|/)(cli|cmd|bin)(/|\.)|config|settings|\.(toml|ya?ml|ini|cfg)$|(^|/)(api|public)/|openapi|\.proto$|(^|/)__init__\.py$|(^|/)index\.(js|ts|mjs)$|package\.json$

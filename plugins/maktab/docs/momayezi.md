@@ -69,8 +69,8 @@ branch instead, so a PR can't rewrite its reviewer's rules.
 Reviewers get `Execution: off`, as with `--no-exec`. `dontAsk` denies reads
 outside the checkout, so on the runner:
 
-- user or managed settings must allow `Read(~/.claude/plugins/cache/maktab/**)`,
-  or a seed directory if maktab is installed there,
+- user or managed settings must allow `Read(~/.claude/plugins/cache/maktab/**)`;
+  a seed directory goes in user (not managed) `additionalDirectories`,
   and the reviewer's Bash: `Bash(rg *)`, `Bash(git diff *)`, `Bash(git log *)`,
   `Bash(git show *)`, `Bash(git blame *)`, `Bash(git ls-files *)`,
   `Bash(git check-attr *)`, `Bash(ls *)`, `Bash(wc *)`
