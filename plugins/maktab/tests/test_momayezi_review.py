@@ -16,9 +16,13 @@ BASE, TIP = 'a' * 40, 'b' * 40
 PULL = f'repos/{REPO}/pulls/4'
 
 
+# What a session that ran its reviewers reports beside the ledger.
+RAN = {'subagent_stats': {'by_type': {'maktab:momayezi': 1}}}
+
+
 class Proc:
     def __init__(self, claude):
-        self.claude = claude
+        self.claude = dict(RAN, **claude) if isinstance(claude, dict) else claude
         self.calls = []
 
     def __call__(self, argv, cwd=None, env=None, check=True):
@@ -54,7 +58,11 @@ def test_a_pr_review_clones_the_head_and_returns_the_placed_ledger(tmp_path):
     prompt = claude['argv'][2]
     assert prompt == (f'/maktab:momayezi --review-only --base {BASE} --head {HEAD} --json '
                       '--ledger .momayezi/prior.json --intent .momayezi/intent.md')
-    assert json.loads(claude['argv'][-1]) == ledgers.schema()
+    sent = json.loads(claude['argv'][-1])
+    assert sent['properties']['verdict']['enum'] == ['clean', 'findings']  # degraded is the runner's
+    assert dict(sent, properties=dict(sent['properties'], verdict=None)) == dict(
+        ledgers.schema(), properties=dict(ledgers.schema()['properties'], verdict=None))
+    assert 'degraded' in ledgers.schema()['properties']['verdict']['enum']
     assert ledgers.loads((tmp_path / '.momayezi/prior.json').read_text()) == sample()
     assert (tmp_path / '.momayezi/intent.md').read_text() == '# Fix it\n\n\n'
 
@@ -220,6 +228,37 @@ def test_a_usage_limit_is_its_own_failure(tmp_path):
     with pytest.raises(ReviewError) as caught:
         review.review(client, Target(pr=4), HEAD, '', tmp_path, Proc('Error: not logged in'), {})
     assert caught.value.failure == {'status': 'failed', 'reason': 'the review printed no JSON: Error: not logged in'}
+
+
+UNREAD = 'degraded: the review procedure was unreadable (denied /opt/seed/maktab/skills/momayezi/references/review-only.md)'
+ALONE = 'degraded: no maktab:momayezi reviewer ran, so the session reviewed alone'
+STATS = {'spawned': 0, 'by_type': {}}
+DENIED = [{'tool_name': 'Read', 'tool_input': {'file_path': '/opt/seed/maktab/skills/momayezi/references/review-only.md'}},
+          {'tool_name': 'Read', 'tool_input': {'file_path': '/usr/lib/python3/site-packages/x.py'}},
+          {'tool_name': 'Read', 'tool_input': '/skills/momayezi/'}, 'junk']
+
+
+@pytest.mark.parametrize('result, degraded, verdict, notes', [
+    # The procedure unreadable and no reviewer: the session's word stands by default, with notes.
+    ({'permission_denials': DENIED, 'subagent_stats': STATS, 'modelUsage': {'claude-sonnet-5-5': {}}},
+     'clean', 'clean', [UNREAD, ALONE, 'models used: claude-sonnet-5-5']),
+    ({'permission_denials': DENIED, 'subagent_stats': STATS}, 'degraded', 'degraded', [UNREAD, ALONE]),
+    # A denied Bash on the skill's files, a reviewer that ran: still degraded.
+    ({'permission_denials': [{'tool_name': 'Bash', 'tool_input': {'command': 'cat ~/x/skills/momayezi/SKILL.md'}}],
+      'subagent_stats': {'by_type': {'maktab:momayezi': 2}}}, 'degraded', 'degraded',
+     ['degraded: the review procedure was unreadable (denied Bash)']),
+    # Reviewers ran; a third-party read denied outside the checkout is no shortfall.
+    ({'permission_denials': DENIED[1:], 'subagent_stats': {'by_type': {'maktab:momayezi': 1}},
+      'modelUsage': {'claude-sonnet-5-5': {}, 'claude-opus-5-5': {}}},
+     'degraded', 'clean', ['models used: claude-opus-5-5, claude-sonnet-5-5']),
+    # A Claude Code too old to report subagents: unverified, said so, not degraded.
+    ({'subagent_stats': None}, 'degraded', 'clean', ['reviewers unverified: this Claude Code reports no subagent_stats']),
+])
+def test_a_review_that_skipped_its_procedure_is_flagged(tmp_path, result, degraded, verdict, notes):
+    client, _ = gh({('GET', PULL): pull()})
+    proc = Proc({'structured_output': dict(sample(), verdict='clean', notes=['mine']), **result})
+    got = review.review(client, Target(pr=4), HEAD, '', tmp_path, proc, {}, memory=False, degraded=degraded)
+    assert got['verdict'] == verdict and got['notes'] == ['mine', *notes]
 
 
 def test_run_proc_passes_stdin(monkeypatch):

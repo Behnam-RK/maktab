@@ -74,7 +74,7 @@ def test_wait_rejects_a_bad_handle(handle, capsys):
 def test_review_prints_the_ledger_marker(monkeypatch, tmp_path, capsys):
     seen = []
 
-    def fake_review(gh, target, head, prior, workdir, follow_rebase, memory):
+    def fake_review(gh, target, head, prior, workdir, follow_rebase, memory, degraded):
         seen.append((gh.repo, target, head, prior, workdir))
         return sample()
     monkeypatch.setattr(review, 'review', fake_review)
@@ -85,6 +85,27 @@ def test_review_prints_the_ledger_marker(monkeypatch, tmp_path, capsys):
     assert seen == [(REPO, Target(pr=4), HEAD, '{"x": 1}', tmp_path)]
     assert cli.main(['review', '--repo', REPO, '--ref', 'feat', '--head', HEAD]) == 0
     assert seen[-1][1] == Target(ref='feat') and seen[-1][3] == '' and seen[-1][4].name.startswith('momayezi-')
+
+
+@pytest.mark.parametrize('env, flag, want', [
+    (None, [], 'clean'), ('degraded', [], 'degraded'), (' ', [], 'clean'),
+    ('degraded', ['--degraded-verdict', 'clean'], 'clean'), (None, ['--degraded-verdict', 'degraded'], 'degraded'),
+])
+def test_review_takes_the_degraded_verdict_from_the_flag_else_the_env(monkeypatch, tmp_path, capsys, env, flag, want):
+    seen = []
+    monkeypatch.setattr(review, 'review', lambda *a, degraded, **k: seen.append(degraded) or sample())
+    if env is None:
+        monkeypatch.delenv('MOMAYEZI_DEGRADED_VERDICT', raising=False)
+    else:
+        monkeypatch.setenv('MOMAYEZI_DEGRADED_VERDICT', env)
+    assert cli.main(['review', '--repo', REPO, '--pr', '4', '--head', HEAD, '--workdir', str(tmp_path), *flag]) == 0
+    assert seen == [want]
+
+
+def test_review_refuses_an_unknown_degraded_verdict(monkeypatch, capsys):
+    monkeypatch.setenv('MOMAYEZI_DEGRADED_VERDICT', 'pass')
+    assert cli.main(['review', '--repo', REPO, '--pr', '4', '--head', HEAD]) == 1
+    assert "MOMAYEZI_DEGRADED_VERDICT='pass': one of clean, degraded" in capsys.readouterr().err
 
 
 def test_review_failures_exit_1(monkeypatch, capsys):
@@ -135,7 +156,7 @@ def test_the_bin_shim_runs_the_plugin_source(tmp_path):
 def test_review_out_writes_the_ledger_or_the_failure(monkeypatch, tmp_path, capsys):
     seen = {}
 
-    def fake_review(gh, target, head, prior, workdir, follow_rebase, memory):
+    def fake_review(gh, target, head, prior, workdir, follow_rebase, memory, degraded):
         seen.update(follow=follow_rebase, memory=memory)
         return sample()
     monkeypatch.setattr(review, 'review', fake_review)

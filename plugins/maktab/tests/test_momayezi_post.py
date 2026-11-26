@@ -56,6 +56,13 @@ def test_check_run_is_created_with_the_marker():
     assert body['output']['title'] == 'momayezi: findings'
 
 
+def test_a_degraded_review_fails_its_check_run():
+    client, runner = gh({('GET', runs_path()): {'check_runs': []}})
+    post.check_run(client, dict(sample(), verdict='degraded'))
+    (body,) = runner.sent('POST', CHECKS)
+    assert body['conclusion'] == 'failure' and body['output']['title'] == 'momayezi: degraded'
+
+
 def test_an_in_progress_run_is_completed_in_place():
     client, runner = gh({('GET', runs_path()): {'check_runs': [run(8, status='in_progress')]}})
     post.check_run(client, sample())

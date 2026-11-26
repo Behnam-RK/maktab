@@ -13,7 +13,8 @@ both feed it, and it is all either end hands on. Its shape is
 - `round`, `lenses`, `model`, and `tier`: smart's tier, or `off`. `effort`:
   the effort passed to reviewers, omitted when none was.
 - `verdict`: `findings` if this round raised or re-raised any finding, else
-  `clean`.
+  `clean`. Only `momayezi-review` sets `degraded`: the session never ran its
+  reviewers or couldn't read this skill, so its notes say why.
 - `cited_files`: every file any finding has cited. "Files no finding has
   cited" is measured against it.
 - `truncated`: set when a size cap dropped detail. `last_id`: the highest

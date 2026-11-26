@@ -9,7 +9,7 @@ Constants in [protocol.py](../src/momayezi/protocol.py):
 
 | What | Value |
 |---|---|
-| Check run | `momayezi`, conclusion `neutral`, ledger in `output.text` |
+| Check run | `momayezi`, conclusion `neutral` (`failure` when `degraded`), ledger in `output.text` |
 | Press label | `review`, removed then re-added on each request |
 | Workflow | `momayezi.yaml`, inputs `ref`, `ledger`; gh-dispatch adds `pr`, `head`, `post` |
 | Artifact | `momayezi-ledger`, holding `ledger.json` or `error.json` |
@@ -35,7 +35,8 @@ token, to create check runs) and `GITHUB_REPOSITORY`:
   `done`, or `unknown` while gh-label sees no workflow run yet, as for a branch), with
   `queued_for` and `ran_for` seconds on a `timeout`.
 - `momayezi-review --repo o/n --pr N|--ref B --head <sha> [--ledger-file f]
-  [--out dir] [--follow-rebase] [--no-project-memory]`: clones the head and
+  [--out dir] [--follow-rebase] [--no-project-memory]
+  [--degraded-verdict clean|degraded]`: clones the head and
   runs one review-only round, for every backend. It needs only a read-only
   `GH_TOKEN`, refuses a fork, and prints the ledger marker as its last line.
   - A moved head is refused, unless `--follow-rebase` and its patch-id over
@@ -44,6 +45,13 @@ token, to create check runs) and `GITHUB_REPOSITORY`:
   - A failure prints `momayezi-error: {status, reason, resets_at?}` last
     and exits 1. `status` is `limited` for a usage limit, `resets_at` when
     the message names a time.
+  - A session that ran no `maktab:momayezi` reviewer, or was denied the
+    skill's files, gets `degraded: …` notes; `--degraded-verdict degraded`
+    (default `$MOMAYEZI_DEGRADED_VERDICT`, else `clean`) also sets the verdict
+    to `degraded`, which fails the check run; `momayezi-prior` skips it.
+    The session itself can't answer `degraded`. Without `subagent_stats`
+    (an old Claude Code) the note is `reviewers unverified`. A `models used:`
+    note names the models the session really ran.
   - `--out` also writes `ledger.json`, or `error.json`: upload the directory
     as the `momayezi-ledger` artifact `if: always()`.
 - `momayezi-post <pr|ref> --error error.json --head <sha>`: posts a failure as

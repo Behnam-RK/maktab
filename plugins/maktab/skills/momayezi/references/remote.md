@@ -58,5 +58,10 @@ stay as in SKILL.md. Only how a round gets its findings changes.
    off: the reasons still travel in your ledger, so don't retry.
 6. **Report** the round and apply the stop rules as usual.
 
+A `degraded` verdict (the remote session ran no reviewers) counts as `failed`
+in step 4, reported with its notes. Merge its findings, but it is no review:
+it never stops the loop as Clean, and the next `head_sha` stays the last one
+reviewed, or `base_sha` if none was.
+
 When the loop stops, commit and push the last fixes without requesting a
 review. The final report's `Reviewer:` line counts the requests.

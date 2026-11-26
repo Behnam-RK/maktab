@@ -82,7 +82,9 @@ def check_run(gh: Gh, ledger: ledgers.Ledger) -> None:
         'summary': summary(ledger),
         'text': ledgers.to_marker(ledger, REVIEWER_MARKER),
     }
-    body = {'status': 'completed', 'conclusion': 'neutral', 'output': output}
+    # Findings are advice, so neutral; a review that didn't run must not read as a pass.
+    conclusion = 'failure' if ledger['verdict'] == 'degraded' else 'neutral'
+    body = {'status': 'completed', 'conclusion': conclusion, 'output': output}
     finish(gh, ledger['target']['head_sha'], body)
     # A rebased head's review also lands on the head that was requested, where waiters look.
     if ledger['target'].get('rebased_from'):

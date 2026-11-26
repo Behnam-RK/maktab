@@ -32,6 +32,13 @@ def test_check_returns_the_new_ledger():
                    'verdict': 'findings', 'ledger': sample()}
 
 
+def test_a_failed_check_run_with_a_degraded_ledger_is_done():
+    degraded = dict(sample(), verdict='degraded')
+    client, _ = gh({('GET', runs_path()): {'check_runs': [dict(run(5, degraded), conclusion='failure')]}})
+    got = poll.check(client, PR, HEAD, set())
+    assert got['status'] == 'done' and got['verdict'] == 'degraded' and got['ledger'] == degraded
+
+
 def test_a_run_without_a_ledger_is_a_failure():
     client, _ = gh({('GET', runs_path()): {'check_runs': [run(5, text='crashed')]}})
     got = poll.check(client, Target(ref='b'), HEAD, set())

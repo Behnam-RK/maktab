@@ -25,7 +25,7 @@
     "model": { "type": "string", "minLength": 1 },
     "effort": { "enum": ["low", "medium", "high", "xhigh"] },
     "tier": { "enum": ["small", "medium", "large", "max", "off"] },
-    "verdict": { "enum": ["clean", "findings"] },
+    "verdict": { "enum": ["clean", "findings", "degraded"] },
     "cited_files": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "truncated": { "type": "boolean" },
     "last_id": { "type": "integer", "minimum": 1 },

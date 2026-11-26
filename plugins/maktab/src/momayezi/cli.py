@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -60,6 +61,9 @@ def _parser() -> argparse.ArgumentParser:
                      help='review a head that moved if it is the same change rebased (patch-id)')
     rev.add_argument('--no-project-memory', dest='memory', action='store_false',
                      help="don't pass the base branch's CLAUDE.md/AGENTS.md to the session")
+    rev.add_argument('--degraded-verdict', choices=review.DEGRADED,
+                     help='verdict of a review whose procedure did not run: clean keeps the session\'s, '
+                          'degraded replaces it (default: $MOMAYEZI_DEGRADED_VERDICT, else clean)')
     sub.add_parser('channel', help='run the MCP channel server on stdio')
     return parser
 
@@ -75,10 +79,13 @@ def _wait(args: argparse.Namespace) -> dict:
 def _review(args: argparse.Namespace) -> str:
     target = Target(pr=args.pr) if args.pr else Target(ref=args.ref)
     try:
+        degraded = args.degraded_verdict or os.environ.get('MOMAYEZI_DEGRADED_VERDICT', '').strip() or 'clean'
+        if degraded not in review.DEGRADED:
+            raise ValueError(f'MOMAYEZI_DEGRADED_VERDICT={degraded!r}: one of {", ".join(review.DEGRADED)}')
         text = args.ledger_file.read_text(encoding='utf-8') if args.ledger_file else ''
         workdir = args.workdir or Path(tempfile.mkdtemp(prefix='momayezi-'))
         found = review.review(Gh(args.repo), target, args.head, text, workdir,
-                              follow_rebase=args.follow_rebase, memory=args.memory)
+                              follow_rebase=args.follow_rebase, memory=args.memory, degraded=degraded)
     except (GhError, ledgers.LedgerError, review.ReviewError, ValueError, OSError) as exc:
         why = exc.failure if isinstance(exc, review.ReviewError) else {'status': 'failed', 'reason': str(exc)}
         if args.out:

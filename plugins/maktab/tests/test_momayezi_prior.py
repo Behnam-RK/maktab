@@ -36,6 +36,12 @@ def test_walks_commits_newest_first_to_the_last_review():
     assert not any(runs_path(OLD) == c[1] for c in runner.calls)
 
 
+def test_a_degraded_review_is_never_the_prior():
+    older = dict(sample(), round=1)
+    client, _ = gh(routes([run(2, dict(sample(), verdict='degraded'))], [run(1, older)], []))
+    assert prior.from_pr(client, 4) == older
+
+
 def test_a_newer_editor_ledger_wins_and_an_older_one_does_not():
     mine = dict(sample(), round=3)
     reviewed = run(2, sample(), completed_at='2026-11-04T10:00:00Z')

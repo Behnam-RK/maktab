@@ -13,12 +13,13 @@ from .protocol import EDITOR_MARKER, EDITOR_RESET
 
 def from_pr(gh: Gh, pr: int) -> ledgers.Ledger | None:
     """The last `momayezi` run on the PR's commits, or the editor's sticky ledger if newer;
-    a newer reset (a new loop's round 1) means no prior at all."""
+    a newer reset (a new loop's round 1) means no prior at all. A `degraded` run reviewed
+    nothing, so it is never the prior."""
     best, when = None, ''
     commits = gh.api(f'repos/{{repo}}/pulls/{pr}/commits?per_page=100', pages=True)
     for commit in reversed(commits):
         done = [(r, run_ledger(r)) for r in gh.runs(commit['sha']) if r.get('status') == 'completed']
-        done = [(r, found) for r, found in done if found]
+        done = [(r, found) for r, found in done if found and found['verdict'] != 'degraded']
         if done:
             run, best = done[0]
             when = run.get('completed_at') or ''

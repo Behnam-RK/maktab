@@ -5,6 +5,7 @@ last `momayezi-error:` line instead. With --out, ledger.json or error.json is al
 from __future__ import annotations
 
 import base64
+import copy
 import json
 import os
 import posixpath
@@ -22,6 +23,11 @@ from .protocol import REVIEWER_MARKER
 
 Proc = Callable[..., str]
 SECRETS = ('GH_TOKEN', 'GITHUB_TOKEN')
+# A review that didn't run its procedure: `clean` keeps the session's verdict (with a note),
+# `degraded` replaces it. $MOMAYEZI_DEGRADED_VERDICT, or momayezi-review --degraded-verdict.
+DEGRADED = ('clean', 'degraded')
+REVIEWER = 'maktab:momayezi'
+PROCEDURE = '/skills/momayezi/'  # a path in the skill's directory, wherever the plugin is installed
 
 
 # Claude Code's own import depth; a project's memory files, read from the base branch.
@@ -149,8 +155,9 @@ def project_memory(proc: Proc, where: str, rev: str) -> tuple[str, list[str]]:
     return text, notes
 
 
-def outcome(out: str) -> dict:
-    """The ledger claude's JSON output carries; a ReviewError, `limited` or `failed`, says why not."""
+def outcome(out: str) -> tuple[dict, dict]:
+    """The ledger claude's JSON output carries, and that output; a ReviewError, `limited` or
+    `failed`, says why there is no ledger."""
     try:
         result = json.loads(out)
     except ValueError:
@@ -161,12 +168,42 @@ def outcome(out: str) -> dict:
         why = (result.get('result') or result.get('subtype') or '') if isinstance(result, dict) else ''
         message = f'the review returned no ledger: {str(why)[-500:]}'
         raise ReviewError(message, failures.classify(message, poll.now()))
-    return found
+    return found, result
+
+
+def session_schema() -> dict:
+    """The ledger schema the session answers in: `degraded` is this runner's to set, not its."""
+    out = copy.deepcopy(ledgers.schema())
+    out['properties']['verdict']['enum'] = [v for v in out['properties']['verdict']['enum'] if v != 'degraded']
+    return out
+
+
+def shortfalls(result: dict) -> list[str]:
+    """Why a session that returned a ledger did not run the review procedure, as notes: it was
+    denied the skill's own files, or no reviewer subagent ran. Its own word is not trusted: a
+    session that fell back to reading the diff itself still says `clean`. A Claude Code too old
+    to report `subagent_stats` can't show the second, and is noted as such."""
+    out = []
+    denied = sorted({str(asked.get('file_path') or d.get('tool_name'))
+                     for d in result.get('permission_denials') or []
+                     if isinstance(d, dict) and isinstance(asked := d.get('tool_input'), dict)
+                     and PROCEDURE in json.dumps(asked)})
+    if denied:
+        out.append(f'degraded: the review procedure was unreadable (denied {", ".join(denied)[:500]})')
+    stats = result.get('subagent_stats')
+    if not isinstance(stats, dict):
+        out.append('reviewers unverified: this Claude Code reports no subagent_stats')
+    elif not (stats.get('by_type') or {}).get(REVIEWER):
+        out.append(f'degraded: no {REVIEWER} reviewer ran, so the session reviewed alone')
+    models = sorted(result.get('modelUsage') or {})
+    if models:
+        out.append(f'models used: {", ".join(models)}')
+    return out
 
 
 def review(gh: Gh, target: Target, head: str, prior: str, workdir: Path, proc: Proc = run_proc,
            env: Mapping[str, str] | None = None, follow_rebase: bool = False,
-           memory: bool = True) -> ledgers.Ledger:
+           memory: bool = True, degraded: str = 'clean') -> ledgers.Ledger:
     env = dict(os.environ) if env is None else dict(env)
     tip, intent, live = resolve(gh, target, head, follow_rebase)
     base = clone(proc, gh.repo, workdir, live, tip, env)
@@ -191,10 +228,15 @@ def review(gh: Gh, target: Target, head: str, prior: str, workdir: Path, proc: P
     # also drops the project's CLAUDE.md, so its rules come back, from the base, as `rules`.
     argv = ['claude', '-p', '/maktab:momayezi ' + ' '.join(args), '--setting-sources', 'user', *SESSION,
             '--permission-mode', 'dontAsk', '--tools', 'Read,Bash,Agent', '--max-turns', '80',
-            '--output-format', 'json', '--json-schema', json.dumps(ledgers.schema())]
+            '--output-format', 'json', '--json-schema', json.dumps(session_schema())]
     if rules:
         argv += ['--append-system-prompt', rules]
-    found = outcome(proc(argv, cwd=workdir, env={k: v for k, v in env.items() if k not in SECRETS}, check=False))
+    found, result = outcome(proc(argv, cwd=workdir, env={k: v for k, v in env.items() if k not in SECRETS},
+                                 check=False))
+    short = shortfalls(result)
+    notes += short
+    if degraded == 'degraded' and any(n.startswith('degraded:') for n in short):
+        found = dict(found, verdict='degraded')
     # The commits this run reviewed, whatever the session wrote, and what it couldn't know.
     stamp = dict(found.get('target') or {}, base_sha=base, head_sha=live)
     if live != head:
