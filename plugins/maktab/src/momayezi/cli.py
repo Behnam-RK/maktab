@@ -12,9 +12,9 @@ from pathlib import Path
 from . import backend as backends
 from . import failure as failures
 from . import ledger as ledgers
-from . import poll, post, prior, review
+from . import k8s, poll, post, prior, review
 from .github import Gh, GhError, Target
-from .protocol import ERROR_FILE, LEDGER_KEY, REVIEWER_MARKER, WAIT_TIMEOUT
+from .protocol import ERROR_FILE, LEDGER_KEY, REVIEWER_KEY, REVIEWER_MARKER, WAIT_TIMEOUT
 
 
 def _ids(text: str) -> set[int]:
@@ -57,6 +57,9 @@ def _parser() -> argparse.ArgumentParser:
     rev.add_argument('--ledger-file', type=Path, help='the prior ledger JSON (empty: round 1)')
     rev.add_argument('--workdir', type=Path, help='where to clone (default: a new temp dir)')
     rev.add_argument('--out', type=Path, help='also write ledger.json, or error.json on failure, here')
+    rev.add_argument('--ledger-configmap', type=k8s.configmap_ref, metavar='NAMESPACE/NAME',
+                     help=f'k8s-job: also keep {REVIEWER_KEY}, or {ERROR_FILE}, in this ConfigMap, which outlives '
+                          'the pod (${namespace}/${ledger_configmap})')
     rev.add_argument('--follow-rebase', action='store_true',
                      help='review a head that moved if it is the same change rebased (patch-id)')
     rev.add_argument('--no-project-memory', dest='memory', action='store_false',
@@ -76,6 +79,18 @@ def _wait(args: argparse.Namespace) -> dict:
                      args.queue_timeout)
 
 
+def _keep(args: argparse.Namespace, key: str, text: str) -> str:
+    """Keep `text` under `key` in --ledger-configmap; why it couldn't, or ''."""
+    if not args.ledger_configmap:
+        return ''
+    try:
+        k8s.keep(args.ledger_configmap, key, text)
+    except k8s.KubeError as exc:
+        print(f'momayezi-review: not kept in ConfigMap {"/".join(args.ledger_configmap)}: {exc}', file=sys.stderr)
+        return str(exc)[:300]
+    return ''
+
+
 def _review(args: argparse.Namespace) -> str:
     target = Target(pr=args.pr) if args.pr else Target(ref=args.ref)
     try:
@@ -91,8 +106,13 @@ def _review(args: argparse.Namespace) -> str:
         if args.out:
             args.out.mkdir(parents=True, exist_ok=True)
             (args.out / ERROR_FILE).write_text(failures.dumps(why), encoding='utf-8')
+        _keep(args, ERROR_FILE, failures.dumps(why))
         print(failures.line(why))  # the last line a pod log or a CI step shows
         raise
+    lost = _keep(args, REVIEWER_KEY, ledgers.dumps(found))
+    if lost:  # the pod log still has it; the note says the next eviction would not
+        found = ledgers.fit(dict(found, notes=[*found.get('notes', []), f'ledger not kept in its ConfigMap: {lost}']),
+                            REVIEWER_MARKER)
     if args.out:
         args.out.mkdir(parents=True, exist_ok=True)
         (args.out / LEDGER_KEY).write_text(ledgers.dumps(found), encoding='utf-8')

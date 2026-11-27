@@ -28,6 +28,7 @@ spec:
       volumes: [{name: ledger, configMap: {name: ${ledger_configmap}}}]
 """
 NOT_FOUND = KubeError('Error from server (NotFound): jobs.batch "x" not found')
+NO_CONFIGMAP = KubeError('Error from server (NotFound): configmaps "x" not found')
 
 
 class FakeKube:
@@ -69,7 +70,7 @@ def pod(name, phase='Succeeded', created='2026-11-05T10:00:00Z'):
 
 
 def backend(routes=None, tmp_path=None, template=TEMPLATE, context=None):
-    runner = FakeKube(routes)
+    runner = FakeKube({('get', 'configmap'): NO_CONFIGMAP, **(routes or {})})
     path = None
     if tmp_path is not None:
         path = tmp_path / 'job.yaml'
@@ -161,11 +162,32 @@ def test_a_live_job_is_reused_and_a_failed_one_replaced(tmp_path):
     kube, runner = backend({('get', 'job'): job()}, tmp_path)
     assert kube.request(PR, HEAD, None)['job'] == NAME and runner.verbs() == [('get', 'job')]
     failed = job([{'type': 'Failed', 'status': 'True'}])
-    kube, runner = backend({('get', 'job'): failed, ('create', '--dry-run=client'): dry_run,
+    kube, runner = backend({('get', 'job'): failed, ('get', 'pods'): {'items': []},
+                            ('create', '--dry-run=client'): dry_run,
                             ('create', '-f'): {'metadata': {'uid': 'u'}}}, tmp_path)
     kube.request(PR, HEAD, None)
-    assert runner.verbs()[:4] == [('get', 'job'), ('delete', 'job'), ('delete', 'configmap'),
-                                  ('create', '--dry-run=client')]
+    assert runner.verbs()[:5] == [('get', 'job'), ('get', 'job'), ('get', 'configmap'), ('get', 'pods'),
+                                  ('delete', 'job')]
+    assert runner.verbs()[5:7] == [('delete', 'configmap'), ('create', '--dry-run=client')]
+
+
+def test_a_finished_job_is_reused_only_while_its_ledger_can_be_read(tmp_path):
+    kept = {'data': {'ledger.json': '', 'reviewer.json': ledgers.dumps(sample())}}
+    kube, runner = backend({('get', 'job'): job([COMPLETE]), ('get', 'configmap'): kept}, tmp_path)
+    assert kube.request(PR, HEAD, None)['job'] == NAME and ('delete', 'job') not in runner.verbs()
+    # A degraded review is asked for again to get a real one, not the same verdict back.
+    degraded = ledgers.dumps(dict(sample(), verdict='degraded'))
+    runner.routes.update({('get', 'configmap'): {'data': {'reviewer.json': degraded}},
+                          ('create', '--dry-run=client'): dry_run, ('create', '-f'): {'metadata': {'uid': 'u'}}})
+    kube.request(PR, HEAD, None)
+    assert ('delete', 'job') in runner.verbs()
+    # Its pod went with its node and nothing was kept: the same request runs it again.
+    kube, runner = backend({('get', 'job'): job([COMPLETE]), ('get', 'pods'): {'items': []},
+                            ('create', '--dry-run=client'): dry_run, ('create', '-f'): {'metadata': {'uid': 'u'}}},
+                           tmp_path)
+    kube.request(PR, HEAD, None)
+    verbs = runner.verbs()
+    assert ('delete', 'job') in verbs and verbs[-2:] == [('create', '-f'), ('patch', 'configmap')]
 
 
 @pytest.mark.parametrize('template, routes, message', [
@@ -251,6 +273,41 @@ def test_a_failed_job_says_why_from_its_pod_log():
     assert runner.calls[-1][0][-2:] == ['a', '--tail=50']
 
 
+def test_check_reads_the_kept_ledger_when_the_pod_is_gone():
+    kept = {'data': {'ledger.json': '', 'reviewer.json': ledgers.dumps(sample())}}
+    kube, runner = backend({('get', 'job'): job([COMPLETE]), ('get', 'configmap'): kept})
+    assert kube.check(HANDLE)['ledger'] == sample() and ('get', 'pods') not in runner.verbs()
+    assert runner.calls[-1][0][-4:] == ['configmap', f'{NAME}-ledger', '-o', 'json']
+    runner.routes[('get', 'configmap')] = {'data': {'reviewer.json': '{}'}}
+    assert 'invalid ledger' in kube.check(HANDLE)['reason']
+    runner.routes[('get', 'configmap')] = {}  # no data at all: the pod log, as before
+    runner.routes[('get', 'pods')] = {'items': []}
+    assert 'kept no ledger in its ConfigMap' in kube.check(HANDLE)['reason']
+    runner.routes[('get', 'configmap')] = KubeError('Forbidden')
+    with pytest.raises(KubeError, match='Forbidden'):
+        kube.check(HANDLE)
+
+
+def test_a_failed_job_says_why_from_its_kept_error():
+    error = '{"reason":"hit your limit","resets_at":"2026-11-05T15:00:00Z","status":"limited"}'
+    kube, runner = backend({('get', 'job'): job([{'type': 'Failed', 'status': 'True'}]),
+                            ('get', 'configmap'): {'data': {'error.json': error}}})
+    assert kube.check(HANDLE)['status'] == 'limited' and ('get', 'pods') not in runner.verbs()
+
+
+def test_the_runner_keeps_one_key_by_a_merge_patch_on_stdin():
+    runner = FakeKube()
+    k8s.keep(k8s.configmap_ref('momayezi/x-ledger'), 'reviewer.json', '{"a":1}', run=runner)
+    (args, stdin), = runner.calls
+    assert args == ['-n', 'momayezi', 'patch', 'configmap', 'x-ledger', '--type', 'merge',
+                    '--patch-file', '/dev/stdin']
+    assert json.loads(stdin) == {'data': {'reviewer.json': '{"a":1}'}}
+    assert k8s.verb(args) in k8s.IDEMPOTENT
+    for bad in ('x', '/x', 'ns/', 'ns/a/b'):
+        with pytest.raises(ValueError, match='namespace'):
+            k8s.configmap_ref(bad)
+
+
 def test_a_rebased_review_is_the_review_of_the_requested_head():
     moved = dict(sample(), target=dict(sample()['target'], head_sha='d' * 40, rebased_from=HEAD))
     kube, _ = backend({('get', 'job'): job([COMPLETE]), ('get', 'pods'): {'items': [pod('a')]},
@@ -265,6 +322,7 @@ def test_status_finds_the_newest_job_for_the_target():
     assert kube.status(PR, HEAD) == {'status': 'none', 'pr': '4', 'head_sha': HEAD}
     assert runner.calls[0][0][-4:] == ['-l', f'momayezi.maktab/head={HEAD}', '-o', 'json']
     runner.routes = {('get', 'jobs'): jobs, ('get', 'job'): [job(), job([COMPLETE])],
+                     ('get', 'configmap'): NO_CONFIGMAP,
                      ('get', 'pods'): {'items': [pod('p')]}, ('logs', 'p'): marker(sample())}
     assert kube.status(PR, HEAD) == {'status': 'pending', 'pr': '4', 'head_sha': HEAD, 'job': NAME,
                                      'phase': 'running', 'queued_for': 7200, 'ran_for': 0}

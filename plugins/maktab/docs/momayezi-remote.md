@@ -10,7 +10,7 @@ k8s-job) has `request_review`, `review_status` and `reply_to_finding`.
 `request_review` takes a full editor ledger, or a lean one: `target`,
 `round`, and per finding `id`, `state`, `at`, `claim`, `reason`. A lean one is
 filled from the last reviewer ledger by id; an id it lacks is refused. Read
-`gh` and `kubectl` calls retry a network flake or a 502/503/504 three times;
+`gh` and `kubectl` calls, and kubectl's merge patches, retry a network flake or a 502/503/504 three times;
 a dispatch or create retries only when the request never left.
 
 ## Backends
@@ -23,7 +23,7 @@ The backend decides what starts a round. It comes from
 |---|---|---|---|
 | `gh-label` | the `review` label (a branch: a dispatch with `ref`, `ledger`) | the `momayezi` check run | `momayezi.yaml` and `momayezi-post.yaml` |
 | `gh-dispatch` | a `momayezi.yaml` dispatch with `pr` or `ref`, `head`, `ledger`, `post` | the check run, or with `post=false` the run's `momayezi-ledger` artifact | those inputs, and `run-name: momayezi <pr/N or ref>@<head>` |
-| `k8s-job` | a Job from the repo's template, made with the caller's `kubectl` | the last ledger marker in the Job's pod log | a namespace, the template, an image running `momayezi-review`, RBAC below |
+| `k8s-job` | a Job from the repo's template, made with the caller's `kubectl` | the Job's ConfigMap, else the last ledger marker in its pod log | a namespace, the template, an image running `momayezi-review`, RBAC ([momayezi-k8s.md](momayezi-k8s.md)) |
 
 A repo avoids `gh-label` when any label fires its CI, as nameless's
 `ci.yaml` does. A dispatch fires no `pull_request` workflow.
@@ -41,14 +41,8 @@ a GitHub App may create check runs, so `k8s-job` under `all` has the caller
 post the PR review with its own `gh` token, and no check run. `routine`
 (a claude.ai routine) waits until a run's result can be read back.
 
-```toml
-# .momayezi.toml
-backend = "k8s-job"
-[k8s]
-template = "ops/momayezi-job.yaml"  # placeholders: ${name} ${namespace} ${repo}
-namespace = "momayezi"              #   ${target_flag} ${target} ${head} ${ledger_configmap}; $$ is a literal $
-context = "staging"                # optional kubectl context
-```
+k8s-job's `.momayezi.toml`, Job, ConfigMap and RBAC: [momayezi-k8s.md](momayezi-k8s.md).
+
 
 `gh-dispatch` runs `momayezi.yaml` on the default branch. If that takes
 unreviewed merges, set `dispatch_ref = "release"` (the trusted branch) in
@@ -67,30 +61,11 @@ context and a template, and pick the branch gh-dispatch runs as. Setting the bac
 `momayezi_reviewer_backend` to `gh-label` leaves the file unread; k8s-job
 always takes `[k8s]` from it, and gh-dispatch its `dispatch_ref`.
 
-**k8s-job** works as follows:
-- The Job is named `momayezi-pr<N>-<head7>-r<round>`, or for a branch
-  `momayezi-<ref, lowercased, other characters as ->-…`, cut to 63 characters. A repeat request
-  reuses a live or finished Job; a failed one is replaced.
-- The ConfigMap `<name>-ledger` holds the editor ledger under `ledger.json`
-  and is owned by the Job, so `ttlSecondsAfterFinished` removes both.
-- The caller needs: on `jobs`, create, get, list and delete; on
-  `configmaps`, create, get, patch and delete; on `pods`, get and list; on
-  `pods/log`, get.
-- The container runs
-  `momayezi-review --repo ${repo} ${target_flag} "${target}" --head ${head}
-  --ledger-file <mounted ledger.json>` (add `--follow-rebase` to taste). The image needs `git`, `gh`, and
-  `claude` with the maktab plugin enabled in user settings, which must also
-  allow `Read(~/.claude/plugins/cache/maktab/**)` and the Bash list in momayezi.md (the session runs with
-  `--setting-sources user` and `dontAsk`; see Review-only in momayezi.md). The pod needs `CLAUDE_CODE_OAUTH_TOKEN` and
-  a read-only `GH_TOKEN`, and holds no write token.
-
 **Cost:** Claude tokens dominate, the same on every backend.
 - Hosted Actions jobs bill each job rounded up to the minute. With
   `gh-dispatch`, skip `start` on a dispatch and keep `review` on self-hosted
   runners; `post=false` also skips the hosted post job.
-- A k8s review waits on the API, so request about 0.25–0.5 vCPU and 1 GiB.
-  Spot nodes with `backoffLimit: 0` are cheap: a pre-empted Job fails fast,
-  and the next request replaces it.
+- k8s-job: Cost in [momayezi-k8s.md](momayezi-k8s.md).
 
 It polls the backend only while a review is pending. The loop always waits
 with `momayezi-wait` (the hint carries `--known` for gh-label, else the

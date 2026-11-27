@@ -15,6 +15,7 @@ Constants in [protocol.py](../src/momayezi/protocol.py):
 | Artifact | `momayezi-ledger`, holding `ledger.json` or `error.json` |
 | Failure | `momayezi-error: {json}`: the last such line in a pod log (stdout's last line), or `<!-- … -->` in a failed check run |
 | k8s | label `momayezi.maktab/head`, annotation `momayezi.maktab/target` |
+| k8s ConfigMap | `<job>-ledger`: `ledger.json` (editor), `reviewer.json` or `error.json` (runner) |
 | Markers | `<!-- momayezi-ledger:v2 <json> -->`, editor comment `<!-- momayezi-editor-ledger:v2 <json> -->` |
 | Size cap | 65,535 bytes; drops nits, then minor evidence, minor findings, all evidence; `truncated`, `last_id` |
 | Version | `v2` since 2.3.0; `v1` is not read (open loops restart). One pin for both ends. |
@@ -35,7 +36,7 @@ token, to create check runs) and `GITHUB_REPOSITORY`:
   `done`, or `unknown` while gh-label sees no workflow run yet, as for a branch), with
   `queued_for` and `ran_for` seconds on a `timeout`.
 - `momayezi-review --repo o/n --pr N|--ref B --head <sha> [--ledger-file f]
-  [--out dir] [--follow-rebase] [--no-project-memory]
+  [--out dir] [--ledger-configmap ns/name] [--follow-rebase] [--no-project-memory]
   [--degraded-verdict clean|degraded]`: clones the head and
   runs one review-only round, for every backend. It needs only a read-only
   `GH_TOKEN`, refuses a fork, and prints the ledger marker as its last line.

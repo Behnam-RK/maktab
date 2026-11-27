@@ -1,5 +1,6 @@
 """k8s-job: the review runs as a Kubernetes Job made from the repo's template; the ledger is the
-last `momayezi-ledger:v2` marker in its pod's log. Every cluster call goes through `Kubectl`."""
+one the runner kept in the Job's ConfigMap, else the last `momayezi-ledger:v2` marker in its pod's
+log. Every cluster call goes through `Kubectl`."""
 
 from __future__ import annotations
 
@@ -18,8 +19,8 @@ from . import ledger as ledgers
 from . import net
 from . import poll
 from .github import Target
-from .protocol import (CONFIGMAP_CAP, EDITOR_MARKER, K8S_HEAD_LABEL, K8S_TARGET_ANNOTATION,
-                       LEDGER_KEY, REVIEWER_MARKER)
+from .protocol import (CONFIGMAP_CAP, EDITOR_MARKER, ERROR_FILE, K8S_HEAD_LABEL, K8S_TARGET_ANNOTATION,
+                       LEDGER_KEY, REVIEWER_KEY, REVIEWER_MARKER)
 
 Runner = Callable[[list[str], str | None], str]
 # A branch name safe to put in a template unquoted; the same rule momayezi-post applies.
@@ -33,7 +34,8 @@ class KubeError(RuntimeError):
         self.not_found = '(NotFound)' in message
 
 
-READS = ('get', 'logs')
+# Safe to repeat: reads, and the merge patches this module sends (an owner link, one data key).
+IDEMPOTENT = ('get', 'logs', 'patch')
 
 
 def verb(args: list[str]) -> str:
@@ -45,7 +47,7 @@ def verb(args: list[str]) -> str:
 
 
 def run_kubectl(args: list[str], stdin: str | None = None) -> str:
-    return net.retrying(lambda: _run_kubectl(args, stdin), verb(args) in READS)
+    return net.retrying(lambda: _run_kubectl(args, stdin), verb(args) in IDEMPOTENT)
 
 
 def _run_kubectl(args: list[str], stdin: str | None) -> str:
@@ -81,6 +83,22 @@ class Kubectl:
             raise
 
 
+def configmap_ref(text: str) -> tuple[str, str]:
+    """`<namespace>/<name>`, as momayezi-review --ledger-configmap takes it."""
+    namespace, _, name = text.partition('/')
+    if not namespace or not name or '/' in name:
+        raise ValueError(f'not <namespace>/<name>: {text!r}')
+    return namespace, name
+
+
+def keep(ref: tuple[str, str], key: str, text: str, run: Runner = run_kubectl) -> None:
+    """Merge one key into the Job's ConfigMap: the runner's copy of its result, which outlives the pod.
+    The patch goes on stdin: a ledger near CAP is too long for one argv entry."""
+    namespace, name = ref
+    Kubectl(namespace, run=run)('patch', 'configmap', name, '--type', 'merge', '--patch-file', '/dev/stdin',
+                                stdin=json.dumps({'data': {key: text}}))
+
+
 def job_name(target: Target, head: str, round_: int) -> str:
     """momayezi-<pr|ref>-<head7>-r<round>: a DNS label, so the same request maps to the same Job."""
     tail = f'-{head[:7]}-r{round_}'
@@ -95,6 +113,11 @@ def state(job: dict[str, Any]) -> tuple[str, str]:
         if cond.get('status') == 'True' and cond.get('type') in ('Complete', 'Failed'):
             return cond['type'], cond.get('message') or cond.get('reason') or ''
     return 'running', ''
+
+
+def reusable(result: dict[str, Any]) -> bool:
+    """A finished Job's result a re-request may return as it is: read, and not degraded."""
+    return result['status'] == 'done' and result['verdict'] != 'degraded'
 
 
 def created_at(item: dict[str, Any]) -> str:
@@ -121,8 +144,8 @@ class K8sJob:
             raise KubeError(f'not a branch name k8s-job can pass on: {target.ref!r}')
         name = job_name(target, head, editor['round'] + 1 if editor else 1)
         job = self.kubectl.job(name)
-        if job and state(job)[0] == 'Failed':
-            # A re-request after a failure runs again; a live or finished Job is read as it is.
+        if job and state(job)[0] != 'running' and not reusable(self.check(self.handle(target, head, name))):
+            # A re-request runs again unless the Job is live or left a sound ledger to read.
             self.kubectl('delete', 'job', name, '--ignore-not-found')
             self.kubectl('delete', 'configmap', f'{name}-ledger', '--ignore-not-found')
             job = None
@@ -158,10 +181,13 @@ class K8sJob:
         self.kubectl('patch', 'configmap', configmap, '--type', 'merge',
                      '-p', json.dumps({'metadata': {'ownerReferences': [owner]}}))
 
+    def pods(self, name: str) -> list[dict[str, Any]]:
+        return self.kubectl.json('get', 'pods', '-l', f'batch.kubernetes.io/job-name={name}')['items']
+
     def progress(self, base: dict[str, Any], name: str, job: dict[str, Any]) -> dict[str, Any]:
         """A Job still on its way: queued while its pod is Pending (with the scheduler's word
         when it can't be placed), else running."""
-        pods = self.kubectl.json('get', 'pods', '-l', f'batch.kubernetes.io/job-name={name}')['items']
+        pods = self.pods(name)
         since = created_at(job)
         if not pods:
             return poll.pending(base, 'queued', since)
@@ -171,6 +197,15 @@ class K8sJob:
                    if c.get('type') == 'PodScheduled' and c.get('status') == 'False']
             return poll.pending(base, 'queued', since, reason=why[0] if why else '')
         return poll.pending(base, 'running', since, status.get('startTime'))
+
+    def kept(self, name: str) -> dict[str, str]:
+        """What the runner kept in the Job's ConfigMap (nothing without --ledger-configmap)."""
+        try:
+            return self.kubectl.json('get', 'configmap', f'{name}-ledger').get('data') or {}
+        except KubeError as exc:
+            if exc.not_found:
+                return {}
+            raise
 
     def check(self, handle: dict[str, Any]) -> dict[str, Any]:
         name, head = handle['job'], handle['head_sha']
@@ -184,22 +219,27 @@ class K8sJob:
         kind, why = state(job)
         if kind == 'running':
             return self.progress(base, name, job)
-        pods = self.kubectl.json('get', 'pods', '-l', f'batch.kubernetes.io/job-name={name}')['items']
+        kept = self.kept(name)
         if kind == 'Failed':
-            told = None
-            try:  # the pod's own word is a bonus; the Job's failure stands without it
+            # The runner's own word is a bonus, kept or in its pod's log; the Job's failure stands without it.
+            told = failures.loads(kept.get(ERROR_FILE))
+            try:
+                pods = [] if told else self.pods(name)
                 if pods:
                     told = failures.from_text(self.kubectl('logs', max(pods, key=created_at)['metadata']['name'],
                                                            '--tail=50'))
             except KubeError:
                 pass
             return {**failed(f'Job {name} failed: {why}' if why else f'Job {name} failed'), **(told or {})}
-        done = [p for p in pods if (p.get('status') or {}).get('phase') == 'Succeeded']
-        if not done:
-            return failed(f'Job {name} left no succeeded pod to read')
-        pod = max(done, key=created_at)['metadata']['name']
         try:
-            found = ledgers.from_marker(self.kubectl('logs', pod, '--tail=-1'), REVIEWER_MARKER)
+            if kept.get(REVIEWER_KEY):
+                found = ledgers.loads(kept[REVIEWER_KEY])
+            else:
+                done = [p for p in self.pods(name) if (p.get('status') or {}).get('phase') == 'Succeeded']
+                if not done:
+                    return failed(f'Job {name} left no succeeded pod to read, and kept no ledger in its ConfigMap')
+                pod = max(done, key=created_at)['metadata']['name']
+                found = ledgers.from_marker(self.kubectl('logs', pod, '--tail=-1'), REVIEWER_MARKER)
         except ledgers.LedgerError as exc:
             return failed(f'Job {name} printed an invalid ledger: {exc}')
         if found is None:

@@ -42,10 +42,12 @@ DISPATCH_INPUTS = ('pr', 'ref', 'head', 'ledger', 'post')
 RUN_NAME = 'momayezi {target}@{head}'
 ARTIFACT = 'momayezi-ledger'
 
-# k8s-job: the Job template's placeholders, the labels the plugin sets, and the ConfigMap the
-# runner reads its prior ledger from (well under the 1 MiB ConfigMap limit).
+# k8s-job: the Job template's placeholders, the labels the plugin sets, and the ConfigMap holding the
+# runner's prior ledger, plus (--ledger-configmap) its result as REVIEWER_KEY (fitted to CAP) or
+# ERROR_FILE, which outlives the pod. Both ledgers stay under the 1 MiB ConfigMap limit.
 PLACEHOLDERS = ('name', 'namespace', 'repo', 'target_flag', 'target', 'head', 'ledger_configmap')
 K8S_HEAD_LABEL = 'momayezi.maktab/head'
 K8S_TARGET_ANNOTATION = 'momayezi.maktab/target'
 LEDGER_KEY = 'ledger.json'
+REVIEWER_KEY = 'reviewer.json'
 CONFIGMAP_CAP = 900000

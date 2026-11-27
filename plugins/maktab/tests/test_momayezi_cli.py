@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from gh_fake import HEAD, REPO, FakeRunner, run, runs_path, sample
 
-from momayezi import channel, cli, github, review
+from momayezi import channel, cli, github, k8s, review
 from momayezi import ledger as ledgers
 from momayezi.github import Target
 from momayezi.protocol import REVIEWER_MARKER
@@ -181,6 +181,35 @@ def test_review_out_writes_the_ledger_or_the_failure(monkeypatch, tmp_path, caps
     monkeypatch.setattr(review, 'review', gone)
     assert cli.main(['review', '--repo', REPO, '--pr', '4', '--head', HEAD]) == 1
     assert '"reason":"HTTP 404","status":"failed"' in capsys.readouterr().out
+
+
+def test_review_keeps_its_result_in_the_configmap(monkeypatch, tmp_path, capsys):
+    kept = []
+
+    def keep(ref, key, text):
+        kept.append((ref, key, text))
+        if ref[1] == 'gone':
+            raise k8s.KubeError('configmaps "gone" is forbidden')
+    monkeypatch.setattr(k8s, 'keep', keep)
+    monkeypatch.setattr(review, 'review', lambda *a, **k: sample())
+    argv = ['review', '--repo', REPO, '--pr', '4', '--head', HEAD, '--workdir', str(tmp_path)]
+    assert cli.main([*argv, '--ledger-configmap', 'ns/x-ledger']) == 0
+    assert kept == [(('ns', 'x-ledger'), 'reviewer.json', ledgers.dumps(sample()))]
+    assert ledgers.from_marker(capsys.readouterr().out, REVIEWER_MARKER) == sample()
+    # Not kept: the log still has the ledger, and the ledger says so.
+    assert cli.main([*argv, '--ledger-configmap', 'ns/gone']) == 0
+    out = capsys.readouterr()
+    assert ledgers.from_marker(out.out, REVIEWER_MARKER)['notes'][-1].startswith('ledger not kept in its ConfigMap')
+    assert 'not kept in ConfigMap ns/gone' in out.err
+
+    def limited(*a, **k):
+        raise review.ReviewError('limit', {'status': 'limited', 'reason': 'hit'})
+    monkeypatch.setattr(review, 'review', limited)
+    for ref in ('ns/x-ledger', 'ns/gone'):
+        assert cli.main([*argv, '--ledger-configmap', ref]) == 1
+    assert [k[1:] for k in kept[-2:]] == [('error.json', '{"reason":"hit","status":"limited"}')] * 2
+    with pytest.raises(SystemExit):
+        cli.main([*argv, '--ledger-configmap', 'x-ledger'])
 
 
 def test_a_label_wait_times_out_on_a_review_no_runner_took(fake, capsys):

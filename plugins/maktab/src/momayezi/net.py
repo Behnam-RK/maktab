@@ -1,8 +1,9 @@
 """Retrying a `gh` or `kubectl` call through a network flake, never through a real answer.
 
-A call that changes nothing (a GET, `kubectl get`) retries on any transient error, a gateway
-502/503/504 included. One that may start something (a dispatch, a POST, `kubectl create`) retries
-only when no request reached the server, so a flake never starts a second review. 4xx: never.
+A call that changes nothing (a GET, `kubectl get`) or is safe to repeat (a `kubectl patch` merge)
+retries on any transient error, a gateway 502/503/504 included. One that may start something
+(a dispatch, a POST, `kubectl create`) retries only when no request reached the server, so a flake
+never starts a second review. 4xx: never.
 """
 
 from __future__ import annotations
