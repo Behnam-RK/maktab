@@ -96,10 +96,10 @@ def test_run_kubectl(monkeypatch):
 def test_kubectl_scopes_every_call_and_reads_a_missing_job_as_none():
     runner = FakeKube({('get', 'job'): [NOT_FOUND, KubeError('Unauthorized')]})
     kubectl = Kubectl('ns', 'ctx', runner)
-    assert kubectl.job('x') is None
+    assert kubectl.get('job', 'x') is None
     assert runner.calls[0][0][:4] == ['--context', 'ctx', '-n', 'ns']
     with pytest.raises(KubeError, match='Unauthorized'):
-        kubectl.job('x')
+        kubectl.get('job', 'x')
     Kubectl('ns', run=runner)('version')
     assert runner.calls[-1][0] == ['-n', 'ns', 'version']
 
@@ -166,9 +166,8 @@ def test_a_live_job_is_reused_and_a_failed_one_replaced(tmp_path):
                             ('create', '--dry-run=client'): dry_run,
                             ('create', '-f'): {'metadata': {'uid': 'u'}}}, tmp_path)
     kube.request(PR, HEAD, None)
-    assert runner.verbs()[:5] == [('get', 'job'), ('get', 'job'), ('get', 'configmap'), ('get', 'pods'),
-                                  ('delete', 'job')]
-    assert runner.verbs()[5:7] == [('delete', 'configmap'), ('create', '--dry-run=client')]
+    assert runner.verbs()[:4] == [('get', 'job'), ('delete', 'job'), ('delete', 'configmap'),
+                                  ('create', '--dry-run=client')]
 
 
 def test_a_finished_job_is_reused_only_while_its_ledger_can_be_read(tmp_path):

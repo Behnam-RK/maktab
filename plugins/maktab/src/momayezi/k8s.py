@@ -74,9 +74,10 @@ class Kubectl:
     def json(self, *args: str, stdin: str | None = None) -> Any:
         return json.loads(self(*args, '-o', 'json', stdin=stdin))
 
-    def job(self, name: str) -> dict[str, Any] | None:
+    def get(self, kind: str, name: str) -> dict[str, Any] | None:
+        """One object, or None when it doesn't exist."""
         try:
-            return self.json('get', 'job', name)
+            return self.json('get', kind, name)
         except KubeError as exc:
             if exc.not_found:
                 return None
@@ -99,6 +100,11 @@ def keep(ref: tuple[str, str], key: str, text: str, run: Runner = run_kubectl) -
                                 stdin=json.dumps({'data': {key: text}}))
 
 
+def ledger_configmap(job: str) -> str:
+    """The Job's ConfigMap: the editor ledger in, and with --ledger-configmap the runner's result out."""
+    return f'{job}-ledger'
+
+
 def job_name(target: Target, head: str, round_: int) -> str:
     """momayezi-<pr|ref>-<head7>-r<round>: a DNS label, so the same request maps to the same Job."""
     tail = f'-{head[:7]}-r{round_}'
@@ -115,9 +121,8 @@ def state(job: dict[str, Any]) -> tuple[str, str]:
     return 'running', ''
 
 
-def reusable(result: dict[str, Any]) -> bool:
-    """A finished Job's result a re-request may return as it is: read, and not degraded."""
-    return result['status'] == 'done' and result['verdict'] != 'degraded'
+def failed(base: dict[str, Any], reason: str) -> dict[str, Any]:
+    return {**base, 'status': 'failed', 'reason': reason}
 
 
 def created_at(item: dict[str, Any]) -> str:
@@ -143,18 +148,26 @@ class K8sJob:
         if target.ref and not SAFE_REF.match(target.ref):
             raise KubeError(f'not a branch name k8s-job can pass on: {target.ref!r}')
         name = job_name(target, head, editor['round'] + 1 if editor else 1)
-        job = self.kubectl.job(name)
-        if job and state(job)[0] != 'running' and not reusable(self.check(self.handle(target, head, name))):
-            # A re-request runs again unless the Job is live or left a sound ledger to read.
+        job = self.kubectl.get('job', name)
+        if job and self.stale(self.handle(target, head, name), job):
             self.kubectl('delete', 'job', name, '--ignore-not-found')
-            self.kubectl('delete', 'configmap', f'{name}-ledger', '--ignore-not-found')
+            self.kubectl('delete', 'configmap', ledger_configmap(name), '--ignore-not-found')
             job = None
         if job is None:
             self.create(name, target, head, editor)
         return self.handle(target, head, name)
 
+    def stale(self, handle: dict[str, Any], job: dict[str, Any]) -> bool:
+        """Whether a re-request runs the Job again: always after a failure, never while it runs,
+        and once complete unless it left a ledger to read that isn't degraded."""
+        kind = state(job)[0]
+        if kind != 'Complete':
+            return kind == 'Failed'
+        result = self.finished(handle, job)
+        return result['status'] != 'done' or result['verdict'] == 'degraded'
+
     def create(self, name: str, target: Target, head: str, editor: ledgers.Ledger | None) -> None:
-        configmap = f'{name}-ledger'
+        configmap = ledger_configmap(name)
         labels = {K8S_HEAD_LABEL: head}
         values = {'name': name, 'namespace': self.kubectl.namespace, 'repo': self.repo,
                   'target_flag': '--pr' if target.pr else '--ref', 'target': str(target.pr or target.ref),
@@ -198,54 +211,54 @@ class K8sJob:
             return poll.pending(base, 'queued', since, reason=why[0] if why else '')
         return poll.pending(base, 'running', since, status.get('startTime'))
 
+    def log(self, name: str, tail: str, phase: str | None = None) -> str | None:
+        """The log of the Job's newest pod (in `phase`, if given), or None without one."""
+        pods = [p for p in self.pods(name) if phase is None or (p.get('status') or {}).get('phase') == phase]
+        return self.kubectl('logs', max(pods, key=created_at)['metadata']['name'], tail) if pods else None
+
     def kept(self, name: str) -> dict[str, str]:
         """What the runner kept in the Job's ConfigMap (nothing without --ledger-configmap)."""
-        try:
-            return self.kubectl.json('get', 'configmap', f'{name}-ledger').get('data') or {}
-        except KubeError as exc:
-            if exc.not_found:
-                return {}
-            raise
+        return (self.kubectl.get('configmap', ledger_configmap(name)) or {}).get('data') or {}
+
+    @staticmethod
+    def base(handle: dict[str, Any]) -> dict[str, Any]:
+        return {**Target.from_meta(handle).meta(), 'head_sha': handle['head_sha'], 'job': handle['job']}
 
     def check(self, handle: dict[str, Any]) -> dict[str, Any]:
-        name, head = handle['job'], handle['head_sha']
-        base = {**Target.from_meta(handle).meta(), 'head_sha': head, 'job': name}
-
-        def failed(reason: str) -> dict[str, Any]:
-            return {**base, 'status': 'failed', 'reason': reason}
-        job = self.kubectl.job(name)
+        name = handle['job']
+        job = self.kubectl.get('job', name)
         if job is None:
-            return failed(f'Job {name} is gone (deleted, or past its TTL)')
+            return failed(self.base(handle), f'Job {name} is gone (deleted, or past its TTL)')
+        if state(job)[0] == 'running':
+            return self.progress(self.base(handle), name, job)
+        return self.finished(handle, job)
+
+    def finished(self, handle: dict[str, Any], job: dict[str, Any]) -> dict[str, Any]:
+        """A stopped Job's result: the ledger it kept or logged, else why there is none."""
+        name, head, base = handle['job'], handle['head_sha'], self.base(handle)
         kind, why = state(job)
-        if kind == 'running':
-            return self.progress(base, name, job)
         kept = self.kept(name)
         if kind == 'Failed':
             # The runner's own word is a bonus, kept or in its pod's log; the Job's failure stands without it.
             told = failures.loads(kept.get(ERROR_FILE))
-            try:
-                pods = [] if told else self.pods(name)
-                if pods:
-                    told = failures.from_text(self.kubectl('logs', max(pods, key=created_at)['metadata']['name'],
-                                                           '--tail=50'))
-            except KubeError:
-                pass
-            return {**failed(f'Job {name} failed: {why}' if why else f'Job {name} failed'), **(told or {})}
+            if told is None:
+                try:
+                    told = failures.from_text(self.log(name, '--tail=50'))
+                except KubeError:
+                    pass
+            return {**failed(base, f'Job {name} failed: {why}' if why else f'Job {name} failed'), **(told or {})}
+        text = kept.get(REVIEWER_KEY)
+        logged = None if text else self.log(name, '--tail=-1', 'Succeeded')
+        if not text and logged is None:
+            return failed(base, f'Job {name} left no succeeded pod to read, and kept no ledger in its ConfigMap')
         try:
-            if kept.get(REVIEWER_KEY):
-                found = ledgers.loads(kept[REVIEWER_KEY])
-            else:
-                done = [p for p in self.pods(name) if (p.get('status') or {}).get('phase') == 'Succeeded']
-                if not done:
-                    return failed(f'Job {name} left no succeeded pod to read, and kept no ledger in its ConfigMap')
-                pod = max(done, key=created_at)['metadata']['name']
-                found = ledgers.from_marker(self.kubectl('logs', pod, '--tail=-1'), REVIEWER_MARKER)
+            found = ledgers.loads(text) if text else ledgers.from_marker(logged, REVIEWER_MARKER)
         except ledgers.LedgerError as exc:
-            return failed(f'Job {name} printed an invalid ledger: {exc}')
+            return failed(base, f'Job {name} left an invalid ledger: {exc}')
         if found is None:
-            return failed(f'Job {name} printed no ledger')
+            return failed(base, f'Job {name} printed no ledger')
         if not poll.reviewed(found, head):
-            return failed(f'Job {name} reviewed {found["target"]["head_sha"]}, not {head}')
+            return failed(base, f'Job {name} reviewed {found["target"]["head_sha"]}, not {head}')
         return {**base, 'status': 'done', 'verdict': found['verdict'], 'ledger': found}
 
     def status(self, target: Target, head: str) -> dict[str, Any]:

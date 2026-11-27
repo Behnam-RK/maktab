@@ -91,6 +91,12 @@ def _keep(args: argparse.Namespace, key: str, text: str) -> str:
     return ''
 
 
+def _out(args: argparse.Namespace, name: str, text: str) -> None:
+    if args.out:
+        args.out.mkdir(parents=True, exist_ok=True)
+        (args.out / name).write_text(text, encoding='utf-8')
+
+
 def _review(args: argparse.Namespace) -> str:
     target = Target(pr=args.pr) if args.pr else Target(ref=args.ref)
     try:
@@ -103,19 +109,16 @@ def _review(args: argparse.Namespace) -> str:
                               follow_rebase=args.follow_rebase, memory=args.memory, degraded=degraded)
     except (GhError, ledgers.LedgerError, review.ReviewError, ValueError, OSError) as exc:
         why = exc.failure if isinstance(exc, review.ReviewError) else {'status': 'failed', 'reason': str(exc)}
-        if args.out:
-            args.out.mkdir(parents=True, exist_ok=True)
-            (args.out / ERROR_FILE).write_text(failures.dumps(why), encoding='utf-8')
-        _keep(args, ERROR_FILE, failures.dumps(why))
+        error = failures.dumps(why)
+        _out(args, ERROR_FILE, error)
+        _keep(args, ERROR_FILE, error)
         print(failures.line(why))  # the last line a pod log or a CI step shows
         raise
     lost = _keep(args, REVIEWER_KEY, ledgers.dumps(found))
     if lost:  # the pod log still has it; the note says the next eviction would not
-        found = ledgers.fit(dict(found, notes=[*found.get('notes', []), f'ledger not kept in its ConfigMap: {lost}']),
-                            REVIEWER_MARKER)
-    if args.out:
-        args.out.mkdir(parents=True, exist_ok=True)
-        (args.out / LEDGER_KEY).write_text(ledgers.dumps(found), encoding='utf-8')
+        notes = [*(found.get('notes') or []), f'ledger not kept in its ConfigMap: {lost}']
+        found = ledgers.fit(dict(found, notes=notes), REVIEWER_MARKER)
+    _out(args, LEDGER_KEY, ledgers.dumps(found))
     return ledgers.to_marker(found, REVIEWER_MARKER)
 
 
